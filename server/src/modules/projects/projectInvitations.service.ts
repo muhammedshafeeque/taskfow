@@ -1,0 +1,210 @@
+import mongoose from 'mongoose';
+import { Project } from './project.model';
+import { ProjectMember } from './projectMember.model';
+import { ProjectInvitation } from './projectInvitation.model';
+import { Role } from '../roles/role.model';
+import { User } from '../auth/user.model';
+import { InboxMessage } from '../inbox/message.model';
+import { ApiError } from '../../utils/ApiError';
+import { DEFAULT_PROJECT_MEMBER_PERMISSION_CODES } from '../../constants/permissions';
+import * as inboxService from '../inbox/inbox.service';
+import { sendProjectInviteEmail } from '../../services/email.service';
+import { sendPushToUser } from '../../services/push.service';
+import { env } from '../../config/env';
+
+const PROJECT_MEMBER_ROLE_NAME = 'Project Member';
+
+/** Syncs the "Project Member" role permissions to the default (no project:edit / project:delete). Call once per process so existing DB roles are updated. */
+export async function syncProjectMemberRolePermissions(): Promise<void> {
+  await Role.updateOne(
+    { name: PROJECT_MEMBER_ROLE_NAME },
+    { $set: { permissions: [...DEFAULT_PROJECT_MEMBER_PERMISSION_CODES] } }
+  );
+}
+
+export async function getOrCreateProjectMemberRole(): Promise<{ _id: mongoose.Types.ObjectId }> {
+  let role = await Role.findOne({ name: PROJECT_MEMBER_ROLE_NAME }).select('_id').lean();
+  if (role) {
+    await syncProjectMemberRolePermissions();
+    return { _id: role._id };
+  }
+  const created = await Role.create({
+    name: PROJECT_MEMBER_ROLE_NAME,
+    permissions: [...DEFAULT_PROJECT_MEMBER_PERMISSION_CODES],
+  });
+  return { _id: created._id };
+}
+
+export async function inviteToProject(
+  projectId: string,
+  email: string,
+  invitedByUserId: string
+): Promise<unknown> {
+  const project = await Project.findById(projectId).lean();
+  if (!project) throw new ApiError(404, 'Project not found');
+
+  const user = await User.findOne({ email: email.toLowerCase().trim() }).select('_id name email').lean();
+  if (!user) throw new ApiError(400, 'User not found. They must have a TaskFlow account.');
+
+  const userIdStr = user._id.toString();
+  const existingMember = await ProjectMember.findOne({ project: projectId, user: userIdStr }).lean();
+  if (existingMember) throw new ApiError(409, 'User is already a member of this project.');
+
+  const pendingInvite = await ProjectInvitation.findOne({
+    project: projectId,
+    user: userIdStr,
+    status: 'pending',
+  }).lean();
+  if (pendingInvite) throw new ApiError(409, 'User has already been invited.');
+
+  const role = await getOrCreateProjectMemberRole();
+  await ProjectInvitation.deleteOne({ project: projectId, user: userIdStr });
+
+  const inviter = await User.findById(invitedByUserId).select('name').lean();
+  const inviterName = inviter?.name ?? 'A team member';
+  const projectName = (project as { name?: string }).name ?? 'Project';
+
+  const invitation = await ProjectInvitation.create({
+    project: projectId,
+    user: userIdStr,
+    invitedBy: invitedByUserId,
+    role: role._id,
+    status: 'pending',
+  });
+
+  const title = `Project invitation: ${projectName}`;
+  const body = `${inviterName} invited you to the project "${projectName}". Open your inbox to accept or decline.`;
+  await inboxService.createMessage({
+    toUser: userIdStr,
+    type: 'project_invitation',
+    title,
+    body,
+    meta: { invitationId: invitation._id.toString(), url: `${env.appUrl}/inbox` },
+  });
+
+  sendProjectInviteEmail((user as { email: string }).email, {
+    projectName,
+    inviterName,
+    appUrl: env.appUrl,
+  }).catch((err) => console.error('Failed to send project invite email:', err));
+
+  sendPushToUser(userIdStr, {
+    title: 'Project invitation',
+    body: `You were invited to the project "${projectName}". Open your inbox to accept or decline.`,
+    url: `${env.appUrl}/inbox`,
+    data: { type: 'project_invitation', invitationId: invitation._id.toString() },
+  }).catch((err) => console.error('Failed to send push notification:', err));
+
+  return ProjectInvitation.findById(invitation._id)
+    .populate('user', 'name email')
+    .populate('invitedBy', 'name')
+    .populate('role', 'name')
+    .lean();
+}
+
+export async function listMembers(projectId: string): Promise<unknown[]> {
+  const members = await ProjectMember.find({ project: projectId })
+    .populate('user', 'name email')
+    .populate('role', 'name')
+    .lean();
+  return members;
+}
+
+export async function listInvitations(projectId: string): Promise<unknown[]> {
+  const invitations = await ProjectInvitation.find({ project: projectId, status: 'pending' })
+    .populate('user', 'name email')
+    .populate('invitedBy', 'name')
+    .lean();
+  return invitations;
+}
+
+export async function cancelInvitation(
+  projectId: string,
+  invitationId: string,
+  _userId: string
+): Promise<void> {
+  const invitation = await ProjectInvitation.findOne({
+    _id: invitationId,
+    project: projectId,
+    status: 'pending',
+  }).lean();
+  if (!invitation) throw new ApiError(404, 'Invitation not found or already accepted/declined.');
+  await ProjectInvitation.findByIdAndUpdate(invitationId, { $set: { status: 'declined' } });
+}
+
+export async function acceptInvitation(invitationId: string, userId: string): Promise<{ projectId: string }> {
+  const invitation = await ProjectInvitation.findById(invitationId)
+    .populate('project', 'name')
+    .populate('user', 'name')
+    .populate('invitedBy', 'name')
+    .lean();
+  if (!invitation) throw new ApiError(404, 'Invitation not found.');
+  const inviteeId = (invitation.user as { _id?: unknown })._id?.toString?.() ?? String(invitation.user);
+  if (inviteeId !== userId) throw new ApiError(403, 'You can only accept invitations sent to you.');
+
+  const projectId = (invitation.project as { _id?: unknown })._id?.toString?.() ?? String(invitation.project);
+
+  if (invitation.status === 'accepted') {
+    return { projectId };
+  }
+  if (invitation.status !== 'pending') throw new ApiError(400, 'Invitation was already declined.');
+
+  const projectName = (invitation.project as { name?: string })?.name ?? 'Project';
+  const inviteeName = (invitation.user as { name?: string })?.name ?? 'A user';
+  const inviterId = (invitation.invitedBy as { _id?: unknown })._id?.toString?.() ?? String(invitation.invitedBy);
+
+  await ProjectMember.create({
+    project: new mongoose.Types.ObjectId(projectId),
+    user: new mongoose.Types.ObjectId(userId),
+    role: invitation.role,
+  });
+  await ProjectInvitation.findByIdAndUpdate(invitationId, { $set: { status: 'accepted' } });
+
+  await InboxMessage.findOneAndUpdate(
+    {
+      toUser: mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId,
+      type: 'project_invitation',
+      'meta.invitationId': invitationId,
+    },
+    { $set: { readAt: new Date(), 'meta.status': 'accepted' } }
+  );
+
+  const acceptanceTitle = 'Invitation accepted';
+  const acceptanceBody = `${inviteeName} accepted your invitation to the project "${projectName}".`;
+  await inboxService.createMessage({
+    toUser: inviterId,
+    type: 'project_invitation_accepted',
+    title: acceptanceTitle,
+    body: acceptanceBody,
+    meta: { projectId, inviteeId, invitationId },
+  });
+
+  const superAdminRole = await Role.findOne({ name: 'Super Admin' }).select('_id').lean();
+  if (superAdminRole) {
+    const superAdmins = await User.find({ roleId: superAdminRole._id }).select('_id').lean();
+    const recipientIds = superAdmins
+      .map((u) => u._id.toString())
+      .filter((id) => id !== inviterId);
+    const superAdminBody = `${inviteeName} accepted an invitation to the project "${projectName}".`;
+    for (const toUserId of recipientIds) {
+      await inboxService.createMessage({
+        toUser: toUserId,
+        type: 'project_invitation_accepted',
+        title: acceptanceTitle,
+        body: superAdminBody,
+        meta: { projectId, inviteeId, invitationId },
+      });
+    }
+  }
+
+  return { projectId };
+}
+
+export async function declineInvitation(invitationId: string, userId: string): Promise<void> {
+  const invitation = await ProjectInvitation.findById(invitationId).lean();
+  if (!invitation) throw new ApiError(404, 'Invitation not found.');
+  if (invitation.status !== 'pending') throw new ApiError(400, 'Invitation was already accepted or declined.');
+  const inviteeId = (invitation.user as { _id?: unknown })._id?.toString?.() ?? String(invitation.user);
+  if (inviteeId !== userId) throw new ApiError(403, 'You can only decline invitations sent to you.');
+  await ProjectInvitation.findByIdAndUpdate(invitationId, { $set: { status: 'declined' } });
+}

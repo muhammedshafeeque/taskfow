@@ -1,0 +1,33 @@
+import { MetaIconGlyph, type MetaIconKey } from '../pages/ProjectSettings';
+
+export interface MetaBadgeMeta {
+  icon?: string;
+  color?: string;
+}
+
+interface MetaBadgeProps {
+  label: string;
+  meta?: MetaBadgeMeta | null;
+  className?: string;
+}
+
+/** Renders a badge with optional icon and color from project-configured meta (status, type, priority). */
+export function MetaBadge({ label, meta, className = '' }: MetaBadgeProps) {
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[11px] bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-[color:var(--text-primary)] ${className}`}
+      style={
+        meta?.color
+          ? { backgroundColor: `${meta.color}20`, color: meta.color, borderColor: `${meta.color}40` }
+          : undefined
+      }
+    >
+      {meta?.icon && (
+        <span style={meta.color ? { color: meta.color } : undefined}>
+          <MetaIconGlyph icon={meta.icon as MetaIconKey} className="w-3.5 h-3.5" />
+        </span>
+      )}
+      {label}
+    </span>
+  );
+}
