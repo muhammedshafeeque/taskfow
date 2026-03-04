@@ -4,7 +4,6 @@ build
 coverage
 logs
 temp
-uploads
 public
 data
 backup
