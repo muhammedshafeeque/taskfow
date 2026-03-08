@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Issue } from '../issues/issue.model';
+import { IssueHistory } from '../issues/issueHistory.model';
 import { ProjectMember } from '../projects/projectMember.model';
 import { User } from '../auth/user.model';
 import { WorkLog } from '../workLogs/workLog.model';
@@ -81,6 +82,20 @@ export interface EstimatesByAssignee {
 
 const DONE_STATUSES = ['Done', 'Closed', 'Resolved'];
 
+/** Pipeline stage: add hasChildren (true if any issue has parent = this._id). Use only leaf issues for estimate sums so epics/stories use children sum. */
+const leafOnlyLookup = [
+  {
+    $lookup: {
+      from: 'issues',
+      let: { parentId: '$_id' },
+      pipeline: [{ $match: { $expr: { $eq: ['$parent', '$$parentId'] } } }, { $limit: 1 }],
+      as: '_children',
+    },
+  },
+  { $addFields: { _hasChildren: { $gt: [{ $size: '$_children' }, 0] } } },
+  { $match: { _hasChildren: false } },
+];
+
 export interface ProjectDeliveryEstimate {
   remainingEstimateMinutes: number;
   loggedMinutesOnDone: number;
@@ -127,6 +142,7 @@ export async function getProjectDeliveryEstimate(
           timeEstimateMinutes: { $exists: true, $gt: 0 },
         },
       },
+      ...leafOnlyLookup,
       { $group: { _id: null, total: { $sum: '$timeEstimateMinutes' } } },
     ]),
     WorkLog.aggregate<{ totalMinutes: number; minDate: Date; maxDate: Date }>([
@@ -199,10 +215,12 @@ export async function getEstimatesStats(userId: string, projectId?: string): Pro
   const [byProjectAgg, byAssigneeAgg] = await Promise.all([
     Issue.aggregate<{ _id: mongoose.Types.ObjectId; totalMinutes: number }>([
       { $match: { project: { $in: projectIds }, timeEstimateMinutes: { $exists: true, $gt: 0 } } },
+      ...leafOnlyLookup,
       { $group: { _id: '$project', totalMinutes: { $sum: '$timeEstimateMinutes' } } },
     ]),
     Issue.aggregate<{ _id: mongoose.Types.ObjectId | null; totalMinutes: number }>([
       { $match: { project: { $in: projectIds }, timeEstimateMinutes: { $exists: true, $gt: 0 } } },
+      ...leafOnlyLookup,
       { $group: { _id: '$assignee', totalMinutes: { $sum: '$timeEstimateMinutes' } } },
     ]),
   ]);
@@ -234,17 +252,48 @@ export async function getEstimatesStats(userId: string, projectId?: string): Pro
   const result: EstimatesStats = { totalMinutes, byProject, byAssignee };
 
   if (projectId) {
-    const [delivery, unestimatedCount] = await Promise.all([
+    const [delivery, unestimatedCountResult] = await Promise.all([
       getProjectDeliveryEstimate(projectId, userId),
-      Issue.countDocuments({
-        project: new mongoose.Types.ObjectId(projectId),
-        $or: [
-          { timeEstimateMinutes: { $exists: false } },
-          { timeEstimateMinutes: null },
-          { timeEstimateMinutes: { $lte: 0 } },
-        ],
-      }),
+      Issue.aggregate<{ count: number }>([
+        { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+        {
+          $lookup: {
+            from: 'issues',
+            localField: '_id',
+            foreignField: 'parent',
+            as: 'childDocs',
+          },
+        },
+        {
+          $addFields: {
+            _childSum: { $ifNull: [{ $sum: '$childDocs.timeEstimateMinutes' }, 0] },
+            _hasChildren: { $gt: [{ $size: '$childDocs' }, 0] },
+          },
+        },
+        {
+          $addFields: {
+            _effectiveEstimate: {
+              $cond: {
+                if: '$_hasChildren',
+                then: '$_childSum',
+                else: '$timeEstimateMinutes',
+              },
+            },
+          },
+        },
+        {
+          $match: {
+            $or: [
+              { _effectiveEstimate: { $exists: false } },
+              { _effectiveEstimate: null },
+              { _effectiveEstimate: { $lte: 0 } },
+            ],
+          },
+        },
+        { $count: 'count' },
+      ]),
     ]);
+    const unestimatedCount = unestimatedCountResult[0]?.count ?? 0;
     result.remainingEstimateMinutes = delivery.remainingEstimateMinutes;
     result.loggedMinutesOnDone = delivery.loggedMinutesOnDone;
     result.burnRatePerDay = delivery.burnRatePerDay;
@@ -254,6 +303,111 @@ export async function getEstimatesStats(userId: string, projectId?: string): Pro
   }
 
   return result;
+}
+
+export interface ProjectMetricsResponse {
+  issuesByType: Array<{ name: string; value: number }>;
+  typeVsStatus: Array<{ type: string; status: string; count: number }>;
+  /** Project status names (from project settings). Only show status-based series for these. */
+  projectStatuses: string[];
+  /** Distinct count of issues moved to each status by date (from history). No duplicates per date+status. */
+  movedToStatusByDate: Array<{ date: string; status: string; count: number }>;
+  /** Bugs created by date (type contains 'bug') */
+  bugsCreatedByDate: Array<{ date: string; count: number }>;
+  /** Logged time by date (sum minutes per day for project). date = YYYY-MM-DD */
+  loggedTimeByDate: Array<{ date: string; minutes: number }>;
+  /** Total estimated minutes (current) for comparison */
+  totalEstimatedMinutes: number;
+}
+
+export async function getProjectMetrics(projectId: string, userId: string): Promise<ProjectMetricsResponse | null> {
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const isMember = await ProjectMember.exists({ user: userObjectId, project: projectId });
+  if (!isMember) return null;
+  const projectObjectId = new mongoose.Types.ObjectId(projectId);
+
+  const { Project } = await import('../projects/project.model');
+  const projectDoc = await Project.findById(projectId).select('statuses').lean();
+  const projectStatuses: string[] =
+    projectDoc && (projectDoc as { statuses?: Array<{ name: string }> }).statuses?.length
+      ? (projectDoc as { statuses: Array<{ name: string }> }).statuses.map((s) => s.name)
+      : [];
+
+  const [issuesByTypeAgg, typeVsStatusAgg, movedToStatusByDateAgg, bugsCreatedByDateAgg, loggedTimeByDateAgg, totalEstimateRow] = await Promise.all([
+    Issue.aggregate<{ _id: string; count: number }>([
+      { $match: { project: projectObjectId } },
+      { $group: { _id: '$type', count: { $sum: 1 } } },
+    ]),
+    Issue.aggregate<{ _id: { type: string; status: string }; count: number }>([
+      { $match: { project: projectObjectId } },
+      { $group: { _id: { type: '$type', status: '$status' }, count: { $sum: 1 } } },
+    ]),
+    IssueHistory.aggregate<{ _id: { date: string; status: string }; count: number }>([
+      { $match: { action: 'field_change', field: 'status' } },
+      { $lookup: { from: 'issues', localField: 'issue', foreignField: '_id', as: 'issueDoc' } },
+      { $unwind: '$issueDoc' },
+      { $match: { 'issueDoc.project': projectObjectId } },
+      {
+        $group: {
+          _id: {
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            status: { $ifNull: [{ $toString: '$toValue' }, ''] },
+          },
+          issues: { $addToSet: '$issue' },
+        },
+      },
+      { $project: { _id: 1, count: { $size: '$issues' } } },
+      { $sort: { '_id.date': 1 } },
+    ]),
+    Issue.aggregate<{ _id: string; count: number }>([
+      { $match: { project: projectObjectId, type: { $regex: /bug/i } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]),
+    WorkLog.aggregate<{ _id: string; totalMinutes: number }>([
+      { $lookup: { from: 'issues', localField: 'issue', foreignField: '_id', as: 'issueDoc' } },
+      { $unwind: '$issueDoc' },
+      { $match: { 'issueDoc.project': projectObjectId } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+          totalMinutes: { $sum: '$minutesSpent' },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+    Issue.aggregate<{ total: number }>([
+      { $match: { project: projectObjectId } },
+      ...leafOnlyLookup,
+      { $match: { timeEstimateMinutes: { $exists: true, $gt: 0 } } },
+      { $group: { _id: null, total: { $sum: '$timeEstimateMinutes' } } },
+    ]),
+  ]);
+
+  const issuesByType = issuesByTypeAgg.map((r) => ({ name: r._id || 'Unknown', value: r.count }));
+  const typeVsStatus = typeVsStatusAgg.map((r) => ({
+    type: r._id.type,
+    status: r._id.status,
+    count: r.count,
+  }));
+  const movedToStatusByDate = movedToStatusByDateAgg.map((r) => ({
+    date: r._id.date,
+    status: r._id.status,
+    count: r.count,
+  }));
+  const bugsCreatedByDate = bugsCreatedByDateAgg.map((r) => ({ date: r._id, count: r.count }));
+  const loggedTimeByDate = loggedTimeByDateAgg.map((r) => ({ date: r._id, minutes: r.totalMinutes }));
+  const totalEstimatedMinutes = totalEstimateRow[0]?.total ?? 0;
+
+  return {
+    issuesByType,
+    typeVsStatus,
+    projectStatuses,
+    movedToStatusByDate,
+    bugsCreatedByDate,
+    loggedTimeByDate,
+    totalEstimatedMinutes,
+  };
 }
 
 export interface DashboardStats {

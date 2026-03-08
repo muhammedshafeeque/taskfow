@@ -575,6 +575,8 @@ export const dashboardApi = {
       projectId ? `/dashboard/estimates?projectId=${encodeURIComponent(projectId)}` : '/dashboard/estimates',
       token
     ),
+  getProjectMetrics: (token: string, projectId: string) =>
+    api.get<ProjectMetricsResponse>(`/dashboard/project-metrics?projectId=${encodeURIComponent(projectId)}`, token),
 };
 
 export interface EstimatesResponse {
@@ -587,6 +589,16 @@ export interface EstimatesResponse {
   expectedDeliveryDate?: string | null;
   usedDefaultBurnRate?: boolean;
   unestimatedIssuesCount?: number;
+}
+
+export interface ProjectMetricsResponse {
+  issuesByType: Array<{ name: string; value: number }>;
+  typeVsStatus: Array<{ type: string; status: string; count: number }>;
+  projectStatuses: string[];
+  movedToStatusByDate: Array<{ date: string; status: string; count: number }>;
+  bugsCreatedByDate: Array<{ date: string; count: number }>;
+  loggedTimeByDate: Array<{ date: string; minutes: number }>;
+  totalEstimatedMinutes: number;
 }
 
 /* Users */

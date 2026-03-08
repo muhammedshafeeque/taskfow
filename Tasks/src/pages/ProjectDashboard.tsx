@@ -1,14 +1,15 @@
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useEffect, useState } from 'react';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { issuesApi, boardsApi, sprintsApi, projectsApi, dashboardApi, type EstimatesResponse } from '../lib/api';
+import { useEffect, useState, useMemo } from 'react';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Area, AreaChart } from 'recharts';
+import { issuesApi, boardsApi, sprintsApi, projectsApi, dashboardApi, type EstimatesResponse, type ProjectMetricsResponse } from '../lib/api';
 import MetricCard from '../components/MetricCard';
 import SectionCard from '../components/SectionCard';
 import { formatMinutes } from '../components/issue/WorkLogInput';
 
 const DEFAULT_STATUSES = ['Backlog', 'Todo', 'In Progress', 'Done'];
 const STATUS_COLORS: string[] = ['#4f46e5', '#06b6d4', '#22c55e', '#f97316', '#e11d48', '#8b5cf6'];
+const TYPE_COLORS: string[] = ['#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ef4444', '#6366f1'];
 
 export default function ProjectDashboard() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -25,6 +26,8 @@ export default function ProjectDashboard() {
   const [statusLoading, setStatusLoading] = useState(false);
   const [estimates, setEstimates] = useState<EstimatesResponse | null>(null);
   const [estimatesLoading, setEstimatesLoading] = useState(false);
+  const [metrics, setMetrics] = useState<ProjectMetricsResponse | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   useEffect(() => {
     if (!token || !projectId) return;
@@ -33,6 +36,16 @@ export default function ProjectDashboard() {
       setEstimatesLoading(false);
       if (res.success && res.data) setEstimates(res.data);
       else setEstimates(null);
+    });
+  }, [token, projectId]);
+
+  useEffect(() => {
+    if (!token || !projectId) return;
+    setMetricsLoading(true);
+    dashboardApi.getProjectMetrics(token, projectId).then((res) => {
+      setMetricsLoading(false);
+      if (res.success && res.data) setMetrics(res.data);
+      else setMetrics(null);
     });
   }, [token, projectId]);
 
@@ -105,6 +118,55 @@ export default function ProjectDashboard() {
   const openStatuses = statusList.filter((s) => s.toLowerCase() !== 'done').map(encodeURIComponent).join(',');
   const cardLinkClass =
     'block rounded-2xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-elevated)] hover:border-[color:var(--border-subtle)] transition hover-elevated';
+
+  const activityChartData = useMemo(() => {
+    if (!metrics) return [];
+    const statuses = metrics.projectStatuses ?? [];
+    const dateMap = new Map<string, Record<string, string | number>>();
+    const initRow = (date: string) => {
+      if (!dateMap.has(date)) {
+        const row: Record<string, string | number> = { date };
+        statuses.forEach((s) => (row[s] = 0));
+        row.bugsCreated = 0;
+        dateMap.set(date, row);
+      }
+      return dateMap.get(date)!;
+    };
+    metrics.movedToStatusByDate.forEach((d) => {
+      const row = initRow(d.date);
+      if (statuses.includes(d.status)) row[d.status] = d.count;
+    });
+    metrics.bugsCreatedByDate.forEach((d) => {
+      initRow(d.date).bugsCreated = d.count;
+    });
+    return Array.from(dateMap.values())
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      .slice(-90);
+  }, [metrics]);
+
+  const estimatedVsLoggedData = useMemo(() => {
+    if (!metrics) return [];
+    const totalEst = metrics.totalEstimatedMinutes;
+    let cumulative = 0;
+    const points = metrics.loggedTimeByDate
+      .map((d) => {
+        cumulative += d.minutes;
+        return { date: d.date, loggedCumulative: cumulative, totalEstimated: totalEst };
+      })
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-90);
+    if (points.length === 0 && totalEst > 0) {
+      const today = new Date().toISOString().slice(0, 10);
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      const past = d.toISOString().slice(0, 10);
+      return [
+        { date: past, loggedCumulative: 0, totalEstimated: totalEst },
+        { date: today, loggedCumulative: 0, totalEstimated: totalEst },
+      ];
+    }
+    return points;
+  }, [metrics]);
   return (
     <div className="p-8 animate-fade-in">
       <div className="w-full px-4 sm:px-6 lg:px-8">
@@ -239,6 +301,161 @@ export default function ProjectDashboard() {
                     <Tooltip />
                     <Legend />
                   </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </SectionCard>
+        </div>
+
+        <div className="mb-6 grid gap-6 lg:grid-cols-2">
+          <SectionCard
+            title="Issues by type"
+            description="Distribution of issues in this project by type."
+          >
+            <div className="h-56">
+              {metricsLoading ? (
+                <div className="h-full flex items-center justify-center text-[color:var(--text-muted)] text-sm animate-pulse">
+                  Loading chart…
+                </div>
+              ) : !metrics?.issuesByType?.length ? (
+                <div className="h-full flex items-center justify-center text-[color:var(--text-muted)] text-sm">
+                  No issues yet for this project.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={metrics.issuesByType}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={3}
+                      label={({ name, value }) => `${name}: ${value}`}
+                      labelLine={false}
+                    >
+                      {metrics.issuesByType.map((entry, index) => (
+                        <Cell key={entry.name} fill={TYPE_COLORS[index % TYPE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Type vs status"
+            description="Count of issues by type and status."
+          >
+            <div className="overflow-x-auto max-h-64 overflow-y-auto">
+              {metricsLoading ? (
+                <div className="h-32 flex items-center justify-center text-[color:var(--text-muted)] text-sm animate-pulse">
+                  Loading…
+                </div>
+              ) : !metrics?.typeVsStatus?.length ? (
+                <div className="h-32 flex items-center justify-center text-[color:var(--text-muted)] text-sm">
+                  No data.
+                </div>
+              ) : (
+                <table className="w-full text-sm text-left">
+                  <thead>
+                    <tr className="border-b border-[color:var(--border-subtle)]">
+                      <th className="py-2 pr-4 font-medium text-[color:var(--text-muted)]">Type</th>
+                      <th className="py-2 pr-4 font-medium text-[color:var(--text-muted)]">Status</th>
+                      <th className="py-2 font-medium text-[color:var(--text-muted)]">Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metrics.typeVsStatus.map((row, i) => (
+                      <tr key={`${row.type}-${row.status}-${i}`} className="border-b border-[color:var(--border-subtle)]">
+                        <td className="py-1.5 pr-4 text-[color:var(--text-primary)]">{row.type}</td>
+                        <td className="py-1.5 pr-4 text-[color:var(--text-primary)]">{row.status}</td>
+                        <td className="py-1.5 text-[color:var(--text-primary)]">{row.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </SectionCard>
+        </div>
+
+        <div className="mb-6">
+          <SectionCard
+            title="Activity over time"
+            description="Issues moved to each status by date (distinct count) and bugs created. Only project statuses are shown."
+          >
+            <div className="h-64">
+              {metricsLoading ? (
+                <div className="h-full flex items-center justify-center text-[color:var(--text-muted)] text-sm animate-pulse">
+                  Loading chart…
+                </div>
+              ) : activityChartData.length === 0 && !(metrics?.projectStatuses?.length) ? (
+                <div className="h-full flex items-center justify-center text-[color:var(--text-muted)] text-sm">
+                  No activity data yet.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={activityChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--text-muted)" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="var(--text-muted)" />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
+                      labelStyle={{ color: 'var(--text-primary)' }}
+                    />
+                    <Legend />
+                    {(metrics?.projectStatuses ?? []).map((statusName, index) => (
+                      <Line
+                        key={statusName}
+                        type="monotone"
+                        dataKey={statusName}
+                        name={statusName}
+                        stroke={STATUS_COLORS[index % STATUS_COLORS.length]}
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
+                    ))}
+                    <Line type="monotone" dataKey="bugsCreated" name="Bugs created" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </SectionCard>
+        </div>
+
+        <div className="mb-6">
+          <SectionCard
+            title="Estimated vs logged time"
+            description="Cumulative logged time over time vs total estimated (current)."
+          >
+            <div className="h-64">
+              {metricsLoading ? (
+                <div className="h-full flex items-center justify-center text-[color:var(--text-muted)] text-sm animate-pulse">
+                  Loading chart…
+                </div>
+              ) : estimatedVsLoggedData.length === 0 && !metrics?.totalEstimatedMinutes ? (
+                <div className="h-full flex items-center justify-center text-[color:var(--text-muted)] text-sm">
+                  Log time to see progress. Add estimates for comparison.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={estimatedVsLoggedData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--text-muted)" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="var(--text-muted)" unit=" min" />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
+                      formatter={(value: number | undefined) => [value != null ? formatMinutes(value) : '—', '']}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Legend />
+                    <Area type="monotone" dataKey="loggedCumulative" name="Logged (cumulative)" stroke="#06b6d4" fill="#06b6d433" strokeWidth={2} />
+                    <Line type="monotone" dataKey="totalEstimated" name="Total estimate" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                  </AreaChart>
                 </ResponsiveContainer>
               )}
             </div>

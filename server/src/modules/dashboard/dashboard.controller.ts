@@ -50,6 +50,16 @@ export async function getEstimatesStats(req: Request & { user?: AuthPayload }, r
   res.status(200).json({ success: true, data });
 }
 
+export async function getProjectMetrics(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
+  const userId = req.user?.id;
+  if (!userId) throw new ApiError(401, 'Unauthorized');
+  const projectId = req.query.projectId as string | undefined;
+  if (!projectId) throw new ApiError(400, 'projectId is required');
+  const data = await dashboardService.getProjectMetrics(projectId, userId);
+  if (data === null) throw new ApiError(403, 'Access denied to this project');
+  res.status(200).json({ success: true, data });
+}
+
 export async function getCostUsage(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
