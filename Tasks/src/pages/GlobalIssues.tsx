@@ -574,6 +574,8 @@ export default function GlobalIssues() {
             projectId={undefined}
             token={token}
             jql={jql}
+            canSaveFilter={false}
+            onSaveFilterClick={() => {}}
           />
 
           <JqlSearchPanel
