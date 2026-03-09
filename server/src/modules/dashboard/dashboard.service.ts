@@ -333,7 +333,7 @@ export async function getProjectMetrics(projectId: string, userId: string): Prom
       ? (projectDoc as { statuses: Array<{ name: string }> }).statuses.map((s) => s.name)
       : [];
 
-  const [issuesByTypeAgg, typeVsStatusAgg, movedToStatusByDateAgg, bugsCreatedByDateAgg, loggedTimeByDateAgg, totalEstimateRow] = await Promise.all([
+  const [issuesByTypeAgg, typeVsStatusAgg, movedToStatusByDateAgg, createdWithStatusByDateAgg, bugsCreatedByDateAgg, loggedTimeByDateAgg, totalEstimateRow] = await Promise.all([
     Issue.aggregate<{ _id: string; count: number }>([
       { $match: { project: projectObjectId } },
       { $group: { _id: '$type', count: { $sum: 1 } } },
@@ -357,6 +357,19 @@ export async function getProjectMetrics(projectId: string, userId: string): Prom
         },
       },
       { $project: { _id: 1, count: { $size: '$issues' } } },
+      { $sort: { '_id.date': 1 } },
+    ]),
+    Issue.aggregate<{ _id: { date: string; status: string }; count: number }>([
+      { $match: { project: projectObjectId } },
+      {
+        $group: {
+          _id: {
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            status: { $ifNull: ['$status', ''] },
+          },
+          count: { $sum: 1 },
+        },
+      },
       { $sort: { '_id.date': 1 } },
     ]),
     Issue.aggregate<{ _id: string; count: number }>([
@@ -390,11 +403,21 @@ export async function getProjectMetrics(projectId: string, userId: string): Prom
     status: r._id.status,
     count: r.count,
   }));
-  const movedToStatusByDate = movedToStatusByDateAgg.map((r) => ({
-    date: r._id.date,
-    status: r._id.status,
-    count: r.count,
-  }));
+  const movedMap = new Map<string, number>();
+  for (const r of movedToStatusByDateAgg) {
+    const key = `${r._id.date}\t${r._id.status}`;
+    movedMap.set(key, r.count);
+  }
+  for (const r of createdWithStatusByDateAgg) {
+    const key = `${r._id.date}\t${r._id.status}`;
+    movedMap.set(key, (movedMap.get(key) ?? 0) + r.count);
+  }
+  const movedToStatusByDate = Array.from(movedMap.entries())
+    .map(([key, count]) => {
+      const [date, status] = key.split('\t');
+      return { date, status, count };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
   const bugsCreatedByDate = bugsCreatedByDateAgg.map((r) => ({ date: r._id, count: r.count }));
   const loggedTimeByDate = loggedTimeByDateAgg.map((r) => ({ date: r._id, minutes: r.totalMinutes }));
   const totalEstimatedMinutes = totalEstimateRow[0]?.total ?? 0;
