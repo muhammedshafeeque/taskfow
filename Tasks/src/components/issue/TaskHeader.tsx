@@ -100,6 +100,18 @@ export default function TaskHeader({
       <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-[color:var(--border-subtle)]/60 relative z-10">
         {projectId ? (
           <Link
+            to={`/projects/${projectId}/issues?create=1`}
+            className={actionBtnClass}
+          >
+            + New issue
+          </Link>
+        ) : (
+          <button type="button" disabled className={actionBtnClass} title="Project context required">
+            + New issue
+          </button>
+        )}
+        {projectId ? (
+          <Link
             to={`/projects/${projectId}/issues?create=1&parent=${issueId}`}
             className={actionBtnClass}
           >
