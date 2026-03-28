@@ -9,7 +9,15 @@ import {
   type TimesheetResult,
   type TimesheetDetailItem,
 } from '../lib/api';
+import DateInputDDMMYYYY from '../components/DateInputDDMMYYYY';
 import { formatMinutes, parseDuration } from '../components/issue/WorkLogInput';
+import {
+  formatDateDDMMYYYY,
+  formatWeekdayDateDDMMYYYY,
+  parseToLocalDate,
+  toIsoDateString,
+  todayIsoDate,
+} from '../lib/dateFormat';
 
 function formatMinutesCell(minutes: number | undefined): string {
   if (!minutes || minutes <= 0) return '';
@@ -123,12 +131,7 @@ function TimesheetDetailsModal({
               Time logged — {userName}
             </h2>
             <p className="text-[11px] text-[color:var(--text-muted)] mt-0.5">
-              {new Date(date).toLocaleDateString(undefined, {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
+              {formatWeekdayDateDDMMYYYY(date)}
             </p>
           </div>
           <button
@@ -251,9 +254,9 @@ export default function Timesheet() {
     const end = new Date();
     const start = new Date(end);
     start.setDate(end.getDate() - 6);
-    return start.toISOString().slice(0, 10);
+    return toIsoDateString(start);
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState(() => todayIsoDate());
   const [exporting, setExporting] = useState(false);
 
   const refreshData = () => {
@@ -291,12 +294,13 @@ export default function Timesheet() {
   }, [token, projectId, startDate, endDate]);
 
   const dateColumns = useMemo(() => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseToLocalDate(startDate);
+    const end = parseToLocalDate(endDate);
+    if (!start || !end) return [];
     const dates: string[] = [];
     const cursor = new Date(start);
     while (cursor <= end) {
-      dates.push(cursor.toISOString().slice(0, 10));
+      dates.push(toIsoDateString(cursor));
       cursor.setDate(cursor.getDate() + 1);
     }
     return dates;
@@ -318,22 +322,20 @@ export default function Timesheet() {
             <label className="block text-[11px] font-medium text-[color:var(--text-primary)] mb-1">
               From
             </label>
-            <input
-              type="date"
+            <DateInputDDMMYYYY
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="px-3 py-1.5 rounded-md bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-xs text-[color:var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent)]/40"
+              onChange={setStartDate}
+              className="px-3 py-1.5 rounded-md bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-xs text-[color:var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent)]/40 w-[10.5rem]"
             />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-[color:var(--text-primary)] mb-1">
               To
             </label>
-            <input
-              type="date"
+            <DateInputDDMMYYYY
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="px-3 py-1.5 rounded-md bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-xs text-[color:var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent)]/40"
+              onChange={setEndDate}
+              className="px-3 py-1.5 rounded-md bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-xs text-[color:var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent)]/40 w-[10.5rem]"
             />
           </div>
           <button
@@ -374,10 +376,7 @@ export default function Timesheet() {
                     key={d}
                     className="px-3 py-2 text-[11px] font-medium text-[color:var(--text-muted)] border-b border-[color:var(--border-subtle)] whitespace-nowrap"
                   >
-                    {new Date(d).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                    })}
+                    {formatDateDDMMYYYY(d)}
                   </th>
                 ))}
                 <th className="px-4 py-2 text-[11px] font-medium text-[color:var(--text-muted)] border-b border-[color:var(--border-subtle)] whitespace-nowrap">

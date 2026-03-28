@@ -1,6 +1,12 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+/** Stored link types (IssueLink documents). */
 export type IssueLinkType = 'blocks' | 'is_blocked_by' | 'duplicates' | 'is_duplicated_by' | 'relates_to';
+
+/**
+ * `is_subtask_of` is returned only for virtual links derived from Issue.parent (not persisted on IssueLink).
+ */
+export type IssueLinkResponseType = IssueLinkType | 'is_subtask_of';
 
 export interface IIssueLink extends Document {
   sourceIssue: mongoose.Types.ObjectId;

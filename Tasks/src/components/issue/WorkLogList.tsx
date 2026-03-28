@@ -1,4 +1,5 @@
 import type { WorkLog } from '../../lib/api';
+import { formatDateDDMMYYYY } from '../../lib/dateFormat';
 import { formatMinutes } from './WorkLogInput';
 
 interface WorkLogListProps {
@@ -35,7 +36,7 @@ export default function WorkLogList({ logs, currentUserId, onDelete }: WorkLogLi
                       {log.author?.name ?? 'Unknown'}
                     </span>
                     <span className="text-[10px] text-[color:var(--text-muted)]">
-                      {new Date(log.date).toLocaleDateString()}
+                      {formatDateDDMMYYYY(log.date)}
                     </span>
                   </div>
                   <span className="text-[11px] font-medium text-[color:var(--text-primary)]">

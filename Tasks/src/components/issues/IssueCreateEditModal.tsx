@@ -1,7 +1,9 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 import { DescriptionEditor } from '../issue';
+import DateInputDDMMYYYY from '../DateInputDDMMYYYY';
 import type { Issue, Project, User, Milestone } from '../../lib/api';
+import { formatDateDDMMYYYY } from '../../lib/dateFormat';
 
 export interface IssueForm {
   title: string;
@@ -133,7 +135,7 @@ export function IssueCreateEditModal(props: IssueCreateEditModalProps) {
                   <option value="">None</option>
                   {milestones.map((m) => (
                     <option key={m._id} value={m._id}>
-                      {m.name}{m.dueDate ? ` (${new Date(m.dueDate).toLocaleDateString()})` : ''}
+                      {m.name}{m.dueDate ? ` (${formatDateDDMMYYYY(m.dueDate)})` : ''}
                     </option>
                   ))}
                 </select>
@@ -210,7 +212,19 @@ export function IssueCreateEditModal(props: IssueCreateEditModalProps) {
                     <label className="block text-xs font-medium text-[color:var(--text-primary)] mb-1">{field.label}{field.required ? ' *' : ''}</label>
                     {field.fieldType === 'text' && <input type="text" value={value} onChange={(e) => setForm((f) => ({ ...f, customFieldValues: { ...f.customFieldValues, [field.key]: e.target.value || undefined } }))} required={field.required} className={inputCls} />}
                     {field.fieldType === 'number' && <input type="number" value={value} onChange={(e) => setForm((f) => ({ ...f, customFieldValues: { ...f.customFieldValues, [field.key]: e.target.value === '' ? undefined : Number(e.target.value) } }))} required={field.required} className={inputCls} />}
-                    {field.fieldType === 'date' && <input type="date" value={value} onChange={(e) => setForm((f) => ({ ...f, customFieldValues: { ...f.customFieldValues, [field.key]: e.target.value || undefined } }))} required={field.required} className={inputCls} />}
+                    {field.fieldType === 'date' && (
+                      <DateInputDDMMYYYY
+                        value={typeof value === 'string' ? value : ''}
+                        onChange={(iso) =>
+                          setForm((f) => ({
+                            ...f,
+                            customFieldValues: { ...f.customFieldValues, [field.key]: iso || undefined },
+                          }))
+                        }
+                        allowEmpty={!field.required}
+                        className={inputCls}
+                      />
+                    )}
                     {field.fieldType === 'select' && (
                       <select value={value} onChange={(e) => setForm((f) => ({ ...f, customFieldValues: { ...f.customFieldValues, [field.key]: e.target.value || undefined } }))} required={field.required} className={inputCls}>
                         <option value="">—</option>

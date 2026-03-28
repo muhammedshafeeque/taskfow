@@ -27,5 +27,6 @@ const issueHistorySchema = new Schema<IIssueHistory>(
 );
 
 issueHistorySchema.index({ issue: 1, createdAt: -1 });
+issueHistorySchema.index({ author: 1, createdAt: -1 });
 
 export const IssueHistory = mongoose.model<IIssueHistory>('IssueHistory', issueHistorySchema);

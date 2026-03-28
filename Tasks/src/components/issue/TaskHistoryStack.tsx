@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { issuesApi, type Issue, type IssueHistoryItem } from '../../lib/api';
+import { formatDateTimeDDMMYYYY } from '../../lib/dateFormat';
 
 function relativeTime(s: string | undefined) {
   if (!s) return '';
@@ -14,7 +15,7 @@ function relativeTime(s: string | undefined) {
   if (diffMins < 60) return `${diffMins} min ago`;
   if (diffHours < 24) return `about ${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
   if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
-  return new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return formatDateTimeDDMMYYYY(s);
 }
 
 function formatMessage(entry: IssueHistoryItem): string {

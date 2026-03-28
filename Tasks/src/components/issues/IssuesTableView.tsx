@@ -4,6 +4,7 @@ import { WatchButton } from '../issue';
 import { EditIcon, TrashIcon } from '../icons/NavigationIcons';
 import { ISSUE_TABLE_COLUMNS, isDueTodayOrPast } from './constants';
 import type { Issue, Project } from '../../lib/api';
+import { formatDateDDMMYYYY } from '../../lib/dateFormat';
 
 type MetaGetter = (name: string) => { icon?: string; color?: string } | undefined;
 
@@ -82,23 +83,23 @@ function renderCell(
     const isHot = isDueTodayOrPast(issue.dueDate);
     return issue.dueDate ? (
       <span className={isHot ? 'text-red-400 font-medium' : 'text-[color:var(--text-muted)]'}>
-        {new Date(issue.dueDate).toLocaleDateString()}
+        {formatDateDDMMYYYY(issue.dueDate)}
       </span>
     ) : (
       <span className="text-[color:var(--text-muted)]">—</span>
     );
   }
   if (colId === 'startDate') {
-    return issue.startDate ? new Date(issue.startDate).toLocaleDateString() : '—';
+    return issue.startDate ? formatDateDDMMYYYY(issue.startDate) : '—';
   }
   if (colId === 'storyPoints') {
     return issue.storyPoints != null ? issue.storyPoints : '—';
   }
   if (colId === 'created') {
-    return issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : '—';
+    return issue.createdAt ? formatDateDDMMYYYY(issue.createdAt) : '—';
   }
   if (colId === 'updated') {
-    return issue.updatedAt ? new Date(issue.updatedAt).toLocaleDateString() : '—';
+    return issue.updatedAt ? formatDateDDMMYYYY(issue.updatedAt) : '—';
   }
   if (colId === 'description') {
     const desc = issue.description ?? '';

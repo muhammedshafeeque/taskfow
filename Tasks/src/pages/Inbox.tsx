@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationsContext';
 import { inboxApi, invitationsApi, type InboxMessage } from '../lib/api';
+import { formatDateTimeDDMMYYYY } from '../lib/dateFormat';
 
 export default function Inbox() {
   const { user, token } = useAuth();
@@ -136,7 +137,7 @@ export default function Inbox() {
                       </p>
                     )}
                     <p className="mt-1 text-[color:var(--text-muted)] text-[11px]">
-                      {m.createdAt ? new Date(m.createdAt).toLocaleString() : ''}
+                      {m.createdAt ? formatDateTimeDDMMYYYY(m.createdAt) : ''}
                     </p>
                   </div>
                   {isInvitationPending(m) && (
@@ -175,7 +176,7 @@ export default function Inbox() {
                   {selectedMessage.title}
                 </h2>
                 <p className="mt-1 text-[color:var(--text-muted)] text-xs">
-                  {selectedMessage.createdAt ? new Date(selectedMessage.createdAt).toLocaleString() : ''}
+                  {selectedMessage.createdAt ? formatDateTimeDDMMYYYY(selectedMessage.createdAt) : ''}
                 </p>
                 <div className="mt-3 text-[color:var(--text-primary)] text-xs whitespace-pre-wrap leading-relaxed">
                   {selectedMessage.body || '—'}

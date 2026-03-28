@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import DateInputDDMMYYYY from '../components/DateInputDDMMYYYY';
 import { api } from '../lib/api';
+import { formatDateDDMMYYYY, toIsoDateString, todayIsoDate } from '../lib/dateFormat';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getChartColor } from '../lib/chartTheme';
 
@@ -18,9 +20,9 @@ export default function Analytics() {
   const [from, setFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().split('T')[0];
+    return toIsoDateString(d);
   });
-  const [to, setTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [to, setTo] = useState(() => todayIsoDate());
 
   useEffect(() => {
     if (!token) return;
@@ -58,20 +60,18 @@ export default function Analytics() {
         <div className="flex flex-wrap gap-4 mb-6">
           <div>
             <label className="block text-xs text-[color:var(--text-muted)] mb-1">From</label>
-            <input
-              type="date"
+            <DateInputDDMMYYYY
               value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm"
+              onChange={setFrom}
+              className="px-3 py-2 rounded-lg bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm w-[11rem]"
             />
           </div>
           <div>
             <label className="block text-xs text-[color:var(--text-muted)] mb-1">To</label>
-            <input
-              type="date"
+            <DateInputDDMMYYYY
               value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm"
+              onChange={setTo}
+              className="px-3 py-2 rounded-lg bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm w-[11rem]"
             />
           </div>
         </div>
@@ -91,10 +91,17 @@ export default function Analytics() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.dailyActiveUsers}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                      <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--text-muted)" />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 10 }}
+                        stroke="var(--text-muted)"
+                        tickFormatter={(v) => (typeof v === 'string' ? formatDateDDMMYYYY(v) : String(v))}
+                        interval="preserveStartEnd"
+                      />
                       <YAxis tick={{ fontSize: 11 }} stroke="var(--text-muted)" />
                       <Tooltip
                         contentStyle={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
+                        labelFormatter={(v) => formatDateDDMMYYYY(String(v))}
                       />
                       <Bar dataKey="count" name="DAU" fill={getChartColor(0)} />
                     </BarChart>

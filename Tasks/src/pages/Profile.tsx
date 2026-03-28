@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi, uploadFile, projectsApi, dashboardApi, type Project, type DashboardStats } from '../lib/api';
+import { formatDateDDMMYYYY } from '../lib/dateFormat';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -23,15 +24,7 @@ function getInitials(name: string): string {
 
 function formatDate(iso?: string): string {
   if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return '—';
-  }
+  return formatDateDDMMYYYY(iso);
 }
 
 function getIssueKey(issue: { key?: string; _id: string }): string {

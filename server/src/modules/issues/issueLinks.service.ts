@@ -3,7 +3,7 @@ import { IssueLink } from './issueLink.model';
 import { Issue } from './issue.model';
 import { ProjectMember } from '../projects/projectMember.model';
 import { ApiError } from '../../utils/ApiError';
-import type { IssueLinkType } from './issueLink.model';
+import type { IssueLinkType, IssueLinkResponseType } from './issueLink.model';
 
 async function ensureUserCanAccessIssue(userId: string, issueId: string): Promise<void> {
   const issue = await Issue.findById(issueId).select('project').lean();
@@ -18,7 +18,7 @@ async function ensureUserCanAccessIssue(userId: string, issueId: string): Promis
 
 export interface NormalizedIssueLink {
   _id: string;
-  linkType: IssueLinkType;
+  linkType: IssueLinkResponseType;
   direction: 'outbound' | 'inbound';
   issue: { _id: string; key: string; title: string; project?: { _id: string; name: string; key: string } };
 }
@@ -77,6 +77,51 @@ export async function findByIssue(issueId: string, userId: string): Promise<Norm
         project: source.project && typeof source.project === 'object' ? { _id: String(source.project._id), name: source.project.name ?? '', key: source.project.key ?? '' } : undefined,
       },
     });
+  }
+
+  const self = await Issue.findById(issueId)
+    .select('parent')
+    .populate({
+      path: 'parent',
+      select: 'key title project',
+      populate: { path: 'project', select: 'name key' },
+    })
+    .lean();
+
+  const parentDoc = self?.parent as
+    | {
+        _id: mongoose.Types.ObjectId;
+        key?: string;
+        title?: string;
+        project?: { _id: mongoose.Types.ObjectId; name?: string; key?: string };
+      }
+    | null
+    | undefined;
+
+  if (parentDoc && typeof parentDoc === 'object' && parentDoc._id) {
+    const parentIdStr = String(parentDoc._id);
+    const alreadyLinked = result.some((l) => l.issue._id === parentIdStr);
+    if (!alreadyLinked) {
+      const proj = parentDoc.project;
+      result.unshift({
+        _id: `__parent__${parentIdStr}`,
+        linkType: 'is_subtask_of',
+        direction: 'outbound',
+        issue: {
+          _id: parentIdStr,
+          key: parentDoc.key ?? parentIdStr.slice(-6),
+          title: parentDoc.title ?? '',
+          project:
+            proj && typeof proj === 'object' && proj._id
+              ? {
+                  _id: String(proj._id),
+                  name: proj.name ?? '',
+                  key: proj.key ?? '',
+                }
+              : undefined,
+        },
+      });
+    }
   }
 
   return result;

@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usersApi, rolesApi, designationsApi, adminApi, type User, type Role, type Designation, type UpdateUserBody, type LicenseData } from '../lib/api';
+import { formatDateDDMMYYYY } from '../lib/dateFormat';
 import { EditIcon } from '../components/icons/NavigationIcons';
 
 function getInitials(name: string): string {
@@ -16,15 +17,7 @@ function getInitials(name: string): string {
 
 function formatDate(iso?: string): string {
   if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return '—';
-  }
+  return formatDateDDMMYYYY(iso);
 }
 
 function getRoleName(u: User): string {

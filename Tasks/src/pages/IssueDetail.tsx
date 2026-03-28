@@ -334,6 +334,12 @@ export default function IssueDetail() {
                 links={links}
                 token={token ?? null}
                 onLinksChange={refreshLinks}
+                onParentRemoved={() => {
+                  if (!token || !projectId || !ticketId) return;
+                  issuesApi.getByKey(projectId, decodeURIComponent(ticketId), token).then((res) => {
+                    if (res.success && res.data) setIssue(res.data);
+                  });
+                }}
               />
               <TaskAttachments
                 ref={attachmentsRef}

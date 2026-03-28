@@ -12,6 +12,7 @@ import {
   type User,
   REPORT_FILTER_UNASSIGNED,
 } from '../lib/api';
+import DateInputDDMMYYYY from '../components/DateInputDDMMYYYY';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const REPORT_TYPES: { value: ReportType; label: string }[] = [
@@ -297,19 +298,19 @@ export default function ReportsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
                 <div>
                   <label className="block text-xs text-[color:var(--text-muted)] mb-1">Date from</label>
-                  <input
-                    type="date"
+                  <DateInputDDMMYYYY
                     value={filterDateFrom}
-                    onChange={(e) => setFilterDateFrom(e.target.value)}
+                    onChange={setFilterDateFrom}
+                    allowEmpty
                     className="px-3 py-1.5 rounded-md bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm w-full"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-[color:var(--text-muted)] mb-1">Date to</label>
-                  <input
-                    type="date"
+                  <DateInputDDMMYYYY
                     value={filterDateTo}
-                    onChange={(e) => setFilterDateTo(e.target.value)}
+                    onChange={setFilterDateTo}
+                    allowEmpty
                     className="px-3 py-1.5 rounded-md bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm w-full"
                   />
                 </div>

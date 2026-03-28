@@ -6,6 +6,7 @@ import { WatchButton } from '../issue';
 import { EditIcon, TrashIcon } from '../icons/NavigationIcons';
 import { isDueTodayOrPast } from './constants';
 import type { Issue } from '../../lib/api';
+import { formatDateDDMMYYYY } from '../../lib/dateFormat';
 
 interface KanbanCardProps {
   issue: Issue;
@@ -78,7 +79,7 @@ export function KanbanCard({
                   isDueTodayOrPast(issue.dueDate) ? 'text-red-400 font-medium' : 'text-[color:var(--text-muted)]'
                 }`}
               >
-                Due {new Date(issue.dueDate).toLocaleDateString()}
+                Due {formatDateDDMMYYYY(issue.dueDate)}
               </p>
             )}
             {typeof issue.assignee === 'object' && issue.assignee && (

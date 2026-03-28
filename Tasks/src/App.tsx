@@ -25,6 +25,7 @@ import TestPlans from './pages/TestPlans';
 import TestCycleRun from './pages/TestCycleRun';
 import DefectMetrics from './pages/DefectMetrics';
 import CostUsage from './pages/CostUsage';
+import PerformanceReport from './pages/PerformanceReport';
 import Reports from './pages/Reports';
 import Traceability from './pages/Traceability';
 import AuditLogs from './pages/AuditLogs';
@@ -67,6 +68,7 @@ function AppRoutes() {
         <Route path="/timesheet" element={<Timesheet />} />
         <Route path="/defect-metrics" element={<DefectMetrics />} />
         <Route path="/cost-usage" element={<CostUsage />} />
+        <Route path="/performance-report" element={<PerformanceReport />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/project-templates" element={<ProjectTemplates />} />

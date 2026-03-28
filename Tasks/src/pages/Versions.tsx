@@ -6,7 +6,9 @@ import remarkGfm from 'remark-gfm';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { useAuth } from '../contexts/AuthContext';
+import DateInputDDMMYYYY from '../components/DateInputDDMMYYYY';
 import { projectsApi, issuesApi, type Project, type ProjectVersion, type Issue, getIssueKey } from '../lib/api';
+import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY } from '../lib/dateFormat';
 import { EditIcon, TrashIcon, WarningIcon, PackageIcon } from '../components/icons/NavigationIcons';
 
 function generateId(): string {
@@ -537,7 +539,7 @@ export default function Versions() {
                           </span>
                         )}
                         {v.releaseDate && (
-                          <span className="text-[color:var(--text-muted)] text-xs">{new Date(v.releaseDate).toLocaleDateString()}</span>
+                          <span className="text-[color:var(--text-muted)] text-xs">{formatDateDDMMYYYY(v.releaseDate)}</span>
                         )}
                         {v.mappedEnvironmentIds?.length ? (
                           <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-[11px] text-[color:var(--text-primary)] font-medium" title="Mapped environment(s)">
@@ -570,7 +572,7 @@ export default function Versions() {
                           <div key={env.id} className="flex items-center gap-2">
                             {releasedAt && (
                               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[color:var(--bg-button-secondary)]/50 text-[color:var(--text-primary)] text-sm">
-                                <span className="text-emerald-400">✓</span> {env.name}: {new Date(releasedAt).toLocaleDateString()}
+                                <span className="text-emerald-400">✓</span> {env.name}: {formatDateDDMMYYYY(releasedAt)}
                                 {v.releaseNotesByEnvironment?.[env.id] && (
                                   <button
                                     type="button"
@@ -621,10 +623,10 @@ export default function Versions() {
               </div>
               <div>
                 <label className={labelClass}>Release date</label>
-                <input
-                  type="date"
+                <DateInputDDMMYYYY
                   value={versionForm.releaseDate}
-                  onChange={(e) => setVersionForm((f) => ({ ...f, releaseDate: e.target.value }))}
+                  onChange={(iso) => setVersionForm((f) => ({ ...f, releaseDate: iso }))}
+                  allowEmpty
                   className={inputClass}
                 />
               </div>
@@ -831,7 +833,7 @@ export default function Versions() {
                   <span>→</span>
                   <span className="text-[color:var(--text-primary)] font-medium">{releaseNotesModal.envName}</span>
                   <span className="opacity-70">·</span>
-                  <span>{new Date().toLocaleString()}</span>
+                  <span>{formatDateTimeDDMMYYYY(new Date())}</span>
                 </div>
               </div>
               <div className="px-6 py-5">

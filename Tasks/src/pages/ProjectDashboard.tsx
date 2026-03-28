@@ -7,6 +7,7 @@ import { issuesApi, boardsApi, sprintsApi, projectsApi, dashboardApi, type Estim
 import MetricCard from '../components/MetricCard';
 import SectionCard from '../components/SectionCard';
 import { formatMinutes } from '../components/issue/WorkLogInput';
+import { formatDateDDMMYYYY } from '../lib/dateFormat';
 
 const DEFAULT_STATUSES = ['Backlog', 'Todo', 'In Progress', 'Done'];
 const STATUS_COLORS: string[] = ['#4f46e5', '#06b6d4', '#22c55e', '#f97316', '#e11d48', '#8b5cf6'];
@@ -335,11 +336,7 @@ export default function ProjectDashboard() {
                   title="Expected delivery"
                   value={
                     estimates?.expectedDeliveryDate
-                      ? new Date(estimates.expectedDeliveryDate + 'T12:00:00').toLocaleDateString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })
+                      ? formatDateDDMMYYYY(estimates.expectedDeliveryDate + 'T12:00:00')
                       : '—'
                   }
                   helperText={

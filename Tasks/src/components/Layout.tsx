@@ -56,6 +56,7 @@ function buildGlobalNav(user: { mustChangePassword?: boolean; permissions?: stri
     { to: '/project-templates', label: 'Templates', icon: <PackageIcon /> },
     { to: '/issues', label: 'All Issues', icon: <IssuesIcon /> },
     { to: '/timesheet', label: 'Timesheet', icon: <TimesheetIcon /> },
+    { to: '/performance-report', label: 'Performance', icon: <TimesheetIcon /> },
     { to: '/workload', label: 'Workload', icon: <TimesheetIcon /> },
     { to: '/estimates', label: 'Estimates', icon: <TimesheetIcon /> },
   ];

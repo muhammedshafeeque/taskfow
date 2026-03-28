@@ -1,6 +1,8 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
+import DateInputDDMMYYYY from '../components/DateInputDDMMYYYY';
+import { formatDateDDMMYYYY } from '../lib/dateFormat';
 import { useEffect, useState, useRef } from 'react';
 import type { IconType } from 'react-icons';
 import {
@@ -413,11 +415,11 @@ function MilestonesTab({
           </div>
           <div>
             <label className="block text-xs text-[color:var(--text-muted)] mb-1">Due date</label>
-            <input
-              type="date"
+            <DateInputDDMMYYYY
               value={newDueDate}
-              onChange={(e) => setNewDueDate(e.target.value)}
-              className="px-3 py-1.5 rounded-md bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm"
+              onChange={setNewDueDate}
+              allowEmpty
+              className="px-3 py-1.5 rounded-md bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm w-[11rem]"
             />
           </div>
           <button
@@ -439,7 +441,7 @@ function MilestonesTab({
                 <li key={m._id} className="flex items-center justify-between px-4 py-3 bg-[color:var(--bg-surface)] hover:bg-[color:var(--bg-elevated)] group">
                   <span className="font-medium text-[color:var(--text-primary)] text-sm">{m.name}</span>
                   <span className="text-[color:var(--text-muted)] text-xs">
-                    {m.dueDate ? new Date(m.dueDate).toLocaleDateString() : '—'}
+                    {m.dueDate ? formatDateDDMMYYYY(m.dueDate) : '—'}
                   </span>
                   <button
                     type="button"

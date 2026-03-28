@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { auditLogsApi, usersApi, projectsApi, type AuditLogEntry, type User, type Project } from '../lib/api';
+import { formatDateTimeDDMMYYYY } from '../lib/dateFormat';
 
 export default function AuditLogs() {
   const { token, user } = useAuth();
@@ -138,7 +139,7 @@ export default function AuditLogs() {
                   {entries.map((e) => (
                     <tr key={e._id} className="bg-[color:var(--bg-surface)]">
                       <td className="px-4 py-3 text-[color:var(--text-primary)]">
-                        {e.createdAt ? new Date(e.createdAt).toLocaleString() : '—'}
+                        {e.createdAt ? formatDateTimeDDMMYYYY(e.createdAt) : '—'}
                       </td>
                       <td className="px-4 py-3 text-[color:var(--text-primary)]">
                         {typeof e.user === 'object' && e.user ? e.user.name : '—'}

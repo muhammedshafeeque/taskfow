@@ -1,15 +1,18 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Link } from 'react-router-dom';
-import type { IssueLink, IssueLinkType } from '../../lib/api';
+import type { IssueLink, IssueLinkType, IssueLinkTypeWithVirtual } from '../../lib/api';
 import { issuesApi, getIssueKey } from '../../lib/api';
 
-const LINK_TYPE_LABELS: Record<IssueLinkType, string> = {
+const LINK_TYPE_LABELS: Record<IssueLinkTypeWithVirtual, string> = {
   blocks: 'Blocks',
   is_blocked_by: 'Blocked by',
   duplicates: 'Duplicates',
   is_duplicated_by: 'Is duplicated by',
   relates_to: 'Relates to',
+  is_subtask_of: 'Parent task',
 };
+
+const MANUAL_LINK_TYPES: IssueLinkType[] = ['blocks', 'is_blocked_by', 'duplicates', 'is_duplicated_by', 'relates_to'];
 
 interface TaskIssueLinksProps {
   issueId: string;
@@ -17,6 +20,8 @@ interface TaskIssueLinksProps {
   links: IssueLink[];
   token: string | null;
   onLinksChange: () => void;
+  /** Called after clearing Issue.parent via the virtual parent link (refresh issue for sidebar). */
+  onParentRemoved?: () => void;
 }
 
 export type TaskIssueLinksHandle = {
@@ -30,6 +35,7 @@ const TaskIssueLinks = forwardRef<TaskIssueLinksHandle, TaskIssueLinksProps>(fun
   links,
   token,
   onLinksChange,
+  onParentRemoved,
 },
   ref
 ) {
@@ -87,6 +93,16 @@ const TaskIssueLinks = forwardRef<TaskIssueLinksHandle, TaskIssueLinksProps>(fun
 
   async function handleRemoveLink(linkId: string) {
     if (!token) return;
+    if (linkId.startsWith('__parent__')) {
+      const res = await issuesApi.update(issueId, { parent: null }, token);
+      if (res.success) {
+        onLinksChange();
+        onParentRemoved?.();
+      } else {
+        alert((res as { message?: string }).message ?? 'Could not remove parent');
+      }
+      return;
+    }
     const res = await issuesApi.removeLink(issueId, linkId, token);
     if (res.success) onLinksChange();
   }
@@ -146,9 +162,9 @@ const TaskIssueLinks = forwardRef<TaskIssueLinksHandle, TaskIssueLinksProps>(fun
                 type="button"
                 onClick={() => handleRemoveLink(link._id)}
                 className="opacity-0 group-hover:opacity-100 text-[10px] text-red-400 hover:text-red-300 shrink-0"
-                aria-label="Remove link"
+                aria-label={link._id.startsWith('__parent__') ? 'Clear parent task' : 'Remove link'}
               >
-                Remove
+                {link._id.startsWith('__parent__') ? 'Clear parent' : 'Remove'}
               </button>
             </li>
           ))}
@@ -202,7 +218,7 @@ const TaskIssueLinks = forwardRef<TaskIssueLinksHandle, TaskIssueLinksProps>(fun
                 onChange={(e) => setSelectedLinkType(e.target.value as IssueLinkType)}
                 className="w-full px-3 py-1.5 rounded-md bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-xs text-[color:var(--text-primary)]"
               >
-                {(Object.keys(LINK_TYPE_LABELS) as IssueLinkType[]).map((t) => (
+                {MANUAL_LINK_TYPES.map((t) => (
                   <option key={t} value={t}>{LINK_TYPE_LABELS[t]}</option>
                 ))}
               </select>

@@ -622,6 +622,43 @@ export const auditLogsApi = {
   },
 };
 
+export interface PerformanceReportTeammate {
+  _id: string;
+  name: string;
+}
+
+export interface PerformanceReportRow {
+  userId: string;
+  userName: string;
+  projectId: string;
+  projectName: string;
+  issueId: string;
+  issueKey: string;
+  issueTitle: string;
+  updates: number;
+  timeLoggedMinutes: number;
+  estimatedMinutes: number | null;
+  status: string;
+}
+
+export interface PerformanceReportTotals {
+  updates: number;
+  timeLoggedMinutes: number;
+  estimatedMinutes: number;
+}
+
+export interface PerformanceReportChartMember {
+  userId: string;
+  userName: string;
+  totalMinutes: number;
+}
+
+export interface PerformanceReportData {
+  rows: PerformanceReportRow[];
+  totals: PerformanceReportTotals;
+  chartByMember: PerformanceReportChartMember[];
+}
+
 export const dashboardApi = {
   getStats: (token: string) => api.get<DashboardStats>('/dashboard/stats', token),
   getPortfolio: (token: string) =>
@@ -655,6 +692,52 @@ export const dashboardApi = {
     ),
   getProjectMetrics: (token: string, projectId: string) =>
     api.get<ProjectMetricsResponse>(`/dashboard/project-metrics?projectId=${encodeURIComponent(projectId)}`, token),
+
+  getPerformanceReportUsers: (token: string) =>
+    api.get<{ users: PerformanceReportTeammate[] }>('/dashboard/performance-report/users', token),
+
+  getPerformanceReport: (
+    token: string,
+    params: { userIds: string[]; from: string; to: string; projectIds?: string[] }
+  ) => {
+    const q = new URLSearchParams();
+    q.set('from', params.from);
+    q.set('to', params.to);
+    if (params.userIds.length) q.set('userIds', params.userIds.join(','));
+    if (params.projectIds?.length) q.set('projectIds', params.projectIds.join(','));
+    return api.get<PerformanceReportData>(`/dashboard/performance-report?${q}`, token);
+  },
+
+  downloadPerformanceReportExcel: async (
+    token: string,
+    params: { userIds: string[]; from: string; to: string; projectIds?: string[] }
+  ): Promise<{ success: boolean; message?: string }> => {
+    const q = new URLSearchParams();
+    q.set('from', params.from);
+    q.set('to', params.to);
+    if (params.userIds.length) q.set('userIds', params.userIds.join(','));
+    if (params.projectIds?.length) q.set('projectIds', params.projectIds.join(','));
+    const headers: HeadersInit = {};
+    if (token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`${API_BASE}/dashboard/performance-report/export?${q}`, { method: 'GET', headers });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      return { success: false, message: (json as ApiResponse).message || res.statusText };
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition');
+    const filename =
+      disposition?.match(/filename="(.+)"/)?.[1] ?? `performance_report_${params.from}_to_${params.to}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    return { success: true };
+  },
 };
 
 export interface EstimatesResponse {
@@ -988,9 +1071,12 @@ export const issuesApi = {
 
 export type IssueLinkType = 'blocks' | 'is_blocked_by' | 'duplicates' | 'is_duplicated_by' | 'relates_to';
 
+/** API may add `is_subtask_of` for the virtual parent link (from Issue.parent), not user-created link types. */
+export type IssueLinkTypeWithVirtual = IssueLinkType | 'is_subtask_of';
+
 export interface IssueLink {
   _id: string;
-  linkType: IssueLinkType;
+  linkType: IssueLinkTypeWithVirtual;
   direction: 'outbound' | 'inbound';
   issue: { _id: string; key: string; title: string; project?: { _id: string; name: string; key: string } };
 }

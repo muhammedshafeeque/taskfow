@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import DateInputDDMMYYYY from '../DateInputDDMMYYYY';
+import { todayIsoDate } from '../../lib/dateFormat';
 
 interface WorkLogInputProps {
   onAdd: (payload: { minutesSpent: number; date: string; description?: string }) => void;
@@ -47,7 +49,7 @@ export function formatMinutes(totalMinutes: number): string {
 
 export default function WorkLogInput({ onAdd, submitting }: WorkLogInputProps) {
   const [duration, setDuration] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => todayIsoDate());
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -85,10 +87,9 @@ export default function WorkLogInput({ onAdd, submitting }: WorkLogInputProps) {
           <label className="block text-xs font-medium text-[color:var(--text-primary)] mb-1">
             Date
           </label>
-          <input
-            type="date"
+          <DateInputDDMMYYYY
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={setDate}
             className="w-full px-3 py-1.5 rounded-md bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-[color:var(--text-primary)] text-xs focus:outline-none focus:ring-1 focus:ring-[color:var(--accent)]/40"
           />
         </div>

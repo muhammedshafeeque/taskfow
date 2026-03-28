@@ -4,10 +4,12 @@ import type { Issue, Project, User, WorkLog } from '../../lib/api';
 import { MetaIconGlyph, type MetaIconKey } from '../../pages/ProjectSettings';
 import { formatMinutes, parseDuration } from './WorkLogInput';
 import WatchButton from './WatchButton';
+import DateInputDDMMYYYY from '../DateInputDDMMYYYY';
+import { formatDateDDMMYYYY, toIsoDatePart } from '../../lib/dateFormat';
 
 function formatDate(s: string | undefined) {
   if (!s) return '—';
-  return new Date(s).toLocaleDateString(undefined, { dateStyle: 'medium' });
+  return formatDateDDMMYYYY(s);
 }
 
 function getInitials(name: string) {
@@ -159,14 +161,13 @@ function InlineDate({
   if (editing) {
     return (
       <div ref={ref}>
-        <input
-          type="date"
-          value={value ? value.slice(0, 10) : ''}
-          onChange={(e) => onChange(e.target.value || null)}
-          onBlur={() => setEditing(false)}
+        <DateInputDDMMYYYY
+          value={toIsoDatePart(value)}
+          onChange={(iso) => onChange(iso || null)}
+          allowEmpty
           disabled={disabled}
-          autoFocus
-          className={`${inputBase} cursor-pointer`}
+          className={`${inputBase} cursor-text`}
+          onCommit={() => setEditing(false)}
         />
       </div>
     );
@@ -596,7 +597,7 @@ export default function TaskDetailsSidebar({
                     >
                       <span className="truncate">
                         {log.author?.name ?? 'Someone'} ·{' '}
-                        {new Date(log.date).toLocaleDateString()}
+                        {formatDateDDMMYYYY(log.date)}
                       </span>
                       <span className="ml-2 text-[color:var(--text-primary)] font-medium">
                         {formatMinutes(log.minutesSpent)}

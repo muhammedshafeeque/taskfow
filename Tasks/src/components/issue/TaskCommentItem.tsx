@@ -1,4 +1,5 @@
 import type { Comment } from '../../lib/api';
+import { formatDateTimeDDMMYYYY } from '../../lib/dateFormat';
 import RichTextContent from '../richText/RichTextContent';
 
 function relativeTime(s: string | undefined) {
@@ -13,7 +14,7 @@ function relativeTime(s: string | undefined) {
   if (diffMins < 60) return `${diffMins} min ago`;
   if (diffHours < 24) return `about ${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
   if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
-  return new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return formatDateTimeDDMMYYYY(s);
 }
 
 interface TaskCommentItemProps {

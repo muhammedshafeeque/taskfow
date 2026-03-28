@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import DateInputDDMMYYYY from '../components/DateInputDDMMYYYY';
 import { dashboardApi, projectsApi, type Project } from '../lib/api';
+import { formatDateDDMMYYYY, toIsoDateString, todayIsoDate } from '../lib/dateFormat';
 
 interface CostEntry {
   projectId: string;
@@ -19,7 +21,7 @@ function exportToCsv(entries: CostEntry[]): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `cost-usage-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `cost-usage-${formatDateDDMMYYYY(new Date()).replace(/\//g, '-')}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -34,9 +36,9 @@ export default function CostUsage() {
   const [from, setFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().split('T')[0];
+    return toIsoDateString(d);
   });
-  const [to, setTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [to, setTo] = useState(() => todayIsoDate());
 
   useEffect(() => {
     if (!token) return;
@@ -90,20 +92,18 @@ export default function CostUsage() {
         </div>
         <div>
           <label className="block text-xs text-[color:var(--text-muted)] mb-1">From</label>
-          <input
-            type="date"
+          <DateInputDDMMYYYY
             value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm"
+            onChange={setFrom}
+            className="px-3 py-2 rounded-lg bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm w-[11rem]"
           />
         </div>
         <div>
           <label className="block text-xs text-[color:var(--text-muted)] mb-1">To</label>
-          <input
-            type="date"
+          <DateInputDDMMYYYY
             value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm"
+            onChange={setTo}
+            className="px-3 py-2 rounded-lg bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-sm w-[11rem]"
           />
         </div>
         <div className="flex items-end">

@@ -1,9 +1,11 @@
 import mongoose from 'mongoose';
 import { Issue } from '../issues/issue.model';
 import { IssueHistory } from '../issues/issueHistory.model';
+import { Project } from '../projects/project.model';
 import { ProjectMember } from '../projects/projectMember.model';
 import { User } from '../auth/user.model';
 import { WorkLog } from '../workLogs/workLog.model';
+import { ApiError } from '../../utils/ApiError';
 import type { ReportFilters } from '../reports/reportFilters';
 import { buildIssueMatch } from '../reports/reportFilters';
 
@@ -721,4 +723,308 @@ export async function getCostUsageReport(
   }));
 
   return { entries };
+}
+
+export interface PerformanceReportTeammate {
+  _id: string;
+  name: string;
+}
+
+export interface PerformanceReportRow {
+  userId: string;
+  userName: string;
+  projectId: string;
+  projectName: string;
+  issueId: string;
+  issueKey: string;
+  issueTitle: string;
+  updates: number;
+  timeLoggedMinutes: number;
+  estimatedMinutes: number | null;
+  status: string;
+}
+
+export interface PerformanceReportTotals {
+  updates: number;
+  timeLoggedMinutes: number;
+  estimatedMinutes: number;
+}
+
+export interface PerformanceReportChartMember {
+  userId: string;
+  userName: string;
+  totalMinutes: number;
+}
+
+export interface PerformanceReportResult {
+  rows: PerformanceReportRow[];
+  totals: PerformanceReportTotals;
+  chartByMember: PerformanceReportChartMember[];
+}
+
+function normalizeDayRange(from: Date, to: Date): { startDay: Date; endDay: Date } {
+  const startDay = new Date(from);
+  startDay.setHours(0, 0, 0, 0);
+  const endDay = new Date(to);
+  endDay.setHours(23, 59, 59, 999);
+  return { startDay, endDay };
+}
+
+/** Users who share at least one project with the requester (for picker + validation). */
+export async function getPerformanceReportTeammates(requestingUserId: string): Promise<PerformanceReportTeammate[]> {
+  const userObjectId = new mongoose.Types.ObjectId(requestingUserId);
+  const projectIds = await ProjectMember.find({ user: userObjectId }).distinct('project');
+  if (projectIds.length === 0) return [];
+
+  const memberUserIds = await ProjectMember.distinct('user', { project: { $in: projectIds } });
+  if (memberUserIds.length === 0) return [];
+
+  const users = await User.find({ _id: { $in: memberUserIds } })
+    .select('name')
+    .sort({ name: 1 })
+    .lean();
+  return (users as { _id: mongoose.Types.ObjectId; name: string }[]).map((u) => ({
+    _id: u._id.toString(),
+    name: u.name,
+  }));
+}
+
+export async function getPerformanceReport(
+  requestingUserId: string,
+  targetUserIds: string[],
+  from: Date,
+  to: Date,
+  filterProjectIds?: string[] | null
+): Promise<PerformanceReportResult> {
+  const empty: PerformanceReportResult = {
+    rows: [],
+    totals: { updates: 0, timeLoggedMinutes: 0, estimatedMinutes: 0 },
+    chartByMember: [],
+  };
+
+  const userObjectId = new mongoose.Types.ObjectId(requestingUserId);
+  const memberProjectIds = await ProjectMember.find({ user: userObjectId }).distinct('project');
+  if (memberProjectIds.length === 0) return empty;
+
+  const allowedProjectIdSet = new Set(memberProjectIds.map((id) => String(id)));
+  let projectObjectIds: mongoose.Types.ObjectId[];
+  if (filterProjectIds && filterProjectIds.length > 0) {
+    for (const pid of filterProjectIds) {
+      if (!mongoose.Types.ObjectId.isValid(pid)) {
+        throw new ApiError(400, `Invalid project id: ${pid}`);
+      }
+      if (!allowedProjectIdSet.has(pid)) {
+        throw new ApiError(403, 'One or more projects are not accessible');
+      }
+    }
+    projectObjectIds = filterProjectIds.map((id) => new mongoose.Types.ObjectId(id));
+  } else {
+    projectObjectIds = memberProjectIds.map((id) => new mongoose.Types.ObjectId(id));
+  }
+
+  const memberUserIds = await ProjectMember.distinct('user', { project: { $in: memberProjectIds } });
+  const allowedUserIds = new Set(memberUserIds.map((id) => String(id)));
+
+  const uniqueTargets = [...new Set(targetUserIds.map((id) => id.trim()).filter(Boolean))];
+  if (uniqueTargets.length === 0) {
+    uniqueTargets.push(requestingUserId);
+  }
+
+  for (const id of uniqueTargets) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new ApiError(400, `Invalid user id: ${id}`);
+    }
+    if (!allowedUserIds.has(id)) {
+      throw new ApiError(403, 'One or more selected users are not in your projects');
+    }
+  }
+
+  const targetObjectIds = uniqueTargets.map((id) => new mongoose.Types.ObjectId(id));
+  const { startDay, endDay } = normalizeDayRange(from, to);
+
+  type PairKey = string;
+  const pairMap = new Map<
+    PairKey,
+    { authorId: string; issueId: string; timeLoggedMinutes: number; workLogCount: number; historyCount: number }
+  >();
+
+  const workAgg = await WorkLog.aggregate<{
+    _id: { author: mongoose.Types.ObjectId; issue: mongoose.Types.ObjectId };
+    timeLoggedMinutes: number;
+    workLogCount: number;
+  }>([
+    {
+      $match: {
+        author: { $in: targetObjectIds },
+        date: { $gte: startDay, $lte: endDay },
+      },
+    },
+    {
+      $lookup: {
+        from: 'issues',
+        localField: 'issue',
+        foreignField: '_id',
+        as: 'issue',
+      },
+    },
+    { $unwind: '$issue' },
+    { $match: { 'issue.project': { $in: projectObjectIds } } },
+    {
+      $group: {
+        _id: { author: '$author', issue: '$issue._id' },
+        timeLoggedMinutes: { $sum: '$minutesSpent' },
+        workLogCount: { $sum: 1 },
+      },
+    },
+  ]);
+
+  for (const r of workAgg) {
+    const authorId = String(r._id.author);
+    const issueId = String(r._id.issue);
+    const k = `${authorId}:${issueId}`;
+    pairMap.set(k, {
+      authorId,
+      issueId,
+      timeLoggedMinutes: r.timeLoggedMinutes,
+      workLogCount: r.workLogCount,
+      historyCount: 0,
+    });
+  }
+
+  const histAgg = await IssueHistory.aggregate<{
+    _id: { author: mongoose.Types.ObjectId; issue: mongoose.Types.ObjectId };
+    historyCount: number;
+  }>([
+    {
+      $match: {
+        author: { $in: targetObjectIds },
+        createdAt: { $gte: startDay, $lte: endDay },
+      },
+    },
+    {
+      $lookup: {
+        from: 'issues',
+        localField: 'issue',
+        foreignField: '_id',
+        as: 'issue',
+      },
+    },
+    { $unwind: '$issue' },
+    { $match: { 'issue.project': { $in: projectObjectIds } } },
+    {
+      $group: {
+        _id: { author: '$author', issue: '$issue._id' },
+        historyCount: { $sum: 1 },
+      },
+    },
+  ]);
+
+  for (const r of histAgg) {
+    const authorId = String(r._id.author);
+    const issueId = String(r._id.issue);
+    const k = `${authorId}:${issueId}`;
+    const existing = pairMap.get(k);
+    if (existing) {
+      existing.historyCount = r.historyCount;
+    } else {
+      pairMap.set(k, {
+        authorId,
+        issueId,
+        timeLoggedMinutes: 0,
+        workLogCount: 0,
+        historyCount: r.historyCount,
+      });
+    }
+  }
+
+  if (pairMap.size === 0) return empty;
+
+  const issueObjectIds = [...new Set([...pairMap.values()].map((p) => p.issueId))].map(
+    (id) => new mongoose.Types.ObjectId(id)
+  );
+
+  const issues = await Issue.find({ _id: { $in: issueObjectIds } })
+    .select('title status timeEstimateMinutes project key')
+    .lean();
+  const issueById = new Map(
+    issues.map((doc) => {
+      const d = doc as {
+        _id: mongoose.Types.ObjectId;
+        title: string;
+        status: string;
+        timeEstimateMinutes?: number;
+        project: mongoose.Types.ObjectId;
+        key?: string;
+      };
+      return [String(d._id), d] as const;
+    })
+  );
+
+  const projectIdSet = new Set(issues.map((doc) => String((doc as { project: mongoose.Types.ObjectId }).project)));
+  const projDocs = await Project.find({ _id: { $in: [...projectIdSet].map((id) => new mongoose.Types.ObjectId(id)) } })
+    .select('name')
+    .lean();
+  const projectMap = new Map(
+    (projDocs as { _id: mongoose.Types.ObjectId; name: string }[]).map((p) => [String(p._id), p.name])
+  );
+
+  const authorIdSet = new Set([...pairMap.values()].map((p) => p.authorId));
+  const authorDocs = await User.find({ _id: { $in: [...authorIdSet].map((id) => new mongoose.Types.ObjectId(id)) } })
+    .select('name')
+    .lean();
+  const authorMap = new Map(
+    (authorDocs as { _id: mongoose.Types.ObjectId; name: string }[]).map((u) => [String(u._id), u.name])
+  );
+
+  const rows: PerformanceReportRow[] = [];
+  for (const p of pairMap.values()) {
+    const issueDoc = issueById.get(p.issueId);
+    if (!issueDoc) continue;
+    const projectId = String(issueDoc.project);
+    rows.push({
+      userId: p.authorId,
+      userName: authorMap.get(p.authorId) ?? 'Unknown',
+      projectId,
+      projectName: projectMap.get(projectId) ?? 'Unknown',
+      issueId: p.issueId,
+      issueKey: issueDoc.key ?? p.issueId.slice(-8),
+      issueTitle: issueDoc.title,
+      updates: p.workLogCount + p.historyCount,
+      timeLoggedMinutes: p.timeLoggedMinutes,
+      estimatedMinutes:
+        issueDoc.timeEstimateMinutes !== undefined && issueDoc.timeEstimateMinutes !== null
+          ? issueDoc.timeEstimateMinutes
+          : null,
+      status: issueDoc.status ?? '',
+    });
+  }
+
+  rows.sort((a, b) => {
+    const c = a.userName.localeCompare(b.userName);
+    if (c !== 0) return c;
+    const d = a.projectName.localeCompare(b.projectName);
+    if (d !== 0) return d;
+    return a.issueKey.localeCompare(b.issueKey);
+  });
+
+  const totals: PerformanceReportTotals = {
+    updates: rows.reduce((s, r) => s + r.updates, 0),
+    timeLoggedMinutes: rows.reduce((s, r) => s + r.timeLoggedMinutes, 0),
+    estimatedMinutes: rows.reduce((s, r) => s + (r.estimatedMinutes ?? 0), 0),
+  };
+
+  const minutesByUser = new Map<string, { userName: string; total: number }>();
+  for (const r of rows) {
+    const cur = minutesByUser.get(r.userId) ?? { userName: r.userName, total: 0 };
+    cur.total += r.timeLoggedMinutes;
+    minutesByUser.set(r.userId, cur);
+  }
+  const chartByMember: PerformanceReportChartMember[] = [...minutesByUser.entries()].map(([userId, v]) => ({
+    userId,
+    userName: v.userName,
+    totalMinutes: v.total,
+  }));
+  chartByMember.sort((a, b) => b.totalMinutes - a.totalMinutes);
+
+  return { rows, totals, chartByMember };
 }
