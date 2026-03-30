@@ -266,7 +266,7 @@ export function IssueCreateEditModal(props: IssueCreateEditModalProps) {
             <button
               type="submit"
               disabled={submitting}
-              className="px-3 py-1.5 rounded-md border border-[color:var(--accent)] bg-[color:var(--accent)] text-xs font-medium text-white hover:opacity-95 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm"
+              className="px-3 py-1.5 rounded-md border border-indigo-600 bg-indigo-600 text-xs font-medium text-white hover:bg-indigo-500 disabled:bg-zinc-700 disabled:text-zinc-400 disabled:cursor-not-allowed disabled:opacity-100 transition-colors shadow-sm"
             >
               {submitting ? 'Saving…' : 'Save'}
             </button>

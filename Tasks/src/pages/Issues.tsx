@@ -370,10 +370,25 @@ const statusList = project?.statuses?.length ? project.statuses.map((s) => s.nam
 
   useEffect(() => {
     if (!token) return;
-    usersApi.list(1, 100, token).then((res) => {
-      if (res.success && res.data) setUsers(res.data.data);
-    });
-  }, [token]);
+    const perms = user?.permissions ?? [];
+    if (perms.includes('users:list')) {
+      usersApi.list(1, 100, token).then((res) => {
+        if (res.success && res.data) setUsers(res.data.data);
+      });
+    } else if (projectId) {
+      projectsApi.getMembers(projectId, token).then((res) => {
+        if (res.success && res.data) {
+          const members = Array.isArray(res.data) ? res.data : [];
+          const flattened = members.map((m) => ({
+            _id: m.user._id,
+            name: m.user.name,
+            email: m.user.email,
+          }));
+          setUsers(flattened as unknown as User[]);
+        }
+      });
+    }
+  }, [token, user?.permissions, projectId]);
 
   useEffect(() => {
     setJqlInput(jql);

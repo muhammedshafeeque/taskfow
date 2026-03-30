@@ -13,6 +13,12 @@ export function resolveEffectiveGlobalPermissions(input: {
   const withAdminFallback =
     basePermissions.length === 0 && input.role === 'admin' ? [...PERMISSION_CODES] : basePermissions;
 
+  // If a user can create issues, they must also be able to list users
+  // so that assignee dropdowns and similar flows don't hit 403s.
+  if (withAdminFallback.includes('issues:create') && !withAdminFallback.includes('users:list')) {
+    withAdminFallback.push('users:list');
+  }
+
   if (input.mustChangePassword && withAdminFallback.includes('projects:create')) {
     return withAdminFallback.filter((p) => p !== 'projects:create');
   }
