@@ -14,11 +14,11 @@ export default function TaskBreadcrumb({
   const navigate = useNavigate();
 
   return (
-    <div className="mb-4 sm:mb-5">
+    <div className="mb-3">
       {projectId ? (
         <Link
           to={`/projects/${projectId}/issues`}
-          className="text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] transition-colors inline-flex items-center gap-1"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] text-xs font-medium text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)] hover:text-[color:var(--text-primary)] transition"
         >
           ← Back to issues
         </Link>
@@ -26,20 +26,18 @@ export default function TaskBreadcrumb({
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] transition-colors"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] text-xs font-medium text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)] hover:text-[color:var(--text-primary)] transition"
         >
           ← Back
         </button>
       )}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mt-2">
-        <nav className="text-sm text-[color:var(--text-muted)] leading-relaxed">
-          <span className="text-[color:var(--text-primary)]/90">{projectName}</span>
-          <span className="mx-2 opacity-50">/</span>
-          <span>Work items</span>
-          <span className="mx-2 opacity-50">/</span>
-          <span className="font-mono font-medium text-[color:var(--text-primary)]">{issueKey}</span>
-        </nav>
-      </div>
+      <nav className="flex items-center gap-0 mt-2 text-xs text-[color:var(--text-muted)]">
+        <span className="text-[color:var(--text-primary)]/90 font-medium">{projectName}</span>
+        <span className="mx-1.5 opacity-40">›</span>
+        <span>Work items</span>
+        <span className="mx-1.5 opacity-40">›</span>
+        <span className="font-mono font-semibold text-[color:var(--text-primary)]">{issueKey}</span>
+      </nav>
     </div>
   );
 }

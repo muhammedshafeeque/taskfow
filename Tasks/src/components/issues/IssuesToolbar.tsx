@@ -55,14 +55,14 @@ export function IssuesToolbar({
 }: IssuesToolbarProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-      <h1 className="text-xl font-semibold shrink-0">Issues</h1>
+      <h1 className="text-2xl font-bold tracking-tight shrink-0">Issues</h1>
       <div className="flex flex-wrap items-center justify-end gap-2 flex-1 min-w-0 ml-auto">
-        <div className="flex rounded-lg border border-[color:var(--border-subtle)] overflow-hidden bg-[color:var(--bg-surface)]" role="group" aria-label="View mode">
+        <div className="flex rounded-md border border-[color:var(--border-subtle)] overflow-hidden bg-[color:var(--bg-surface)]" role="group" aria-label="View mode">
           <button
             type="button"
             onClick={() => updateUrl({ viewMode: 'table' })}
             title="View: Table"
-            className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs ${viewMode === 'table' ? 'bg-[color:var(--bg-page)] text-[color:var(--text-primary)]' : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)]'}`}
+            className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium transition ${viewMode === 'table' ? 'bg-[color:var(--accent)] text-white' : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text-primary)]'}`}
           >
             <FiLayout className={iconSm} aria-hidden />
             Table
@@ -71,7 +71,7 @@ export function IssuesToolbar({
             type="button"
             onClick={() => updateUrl({ viewMode: 'list' })}
             title="View: List"
-            className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs ${viewMode === 'list' ? 'bg-[color:var(--bg-page)] text-[color:var(--text-primary)]' : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)]'}`}
+            className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium transition ${viewMode === 'list' ? 'bg-[color:var(--accent)] text-white' : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text-primary)]'}`}
           >
             <FiList className={iconSm} aria-hidden />
             List
@@ -80,7 +80,7 @@ export function IssuesToolbar({
             type="button"
             onClick={() => updateUrl({ viewMode: 'kanban' })}
             title="View: Kanban"
-            className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs ${viewMode === 'kanban' ? 'bg-[color:var(--bg-page)] text-[color:var(--text-primary)]' : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)]'}`}
+            className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium transition ${viewMode === 'kanban' ? 'bg-[color:var(--accent)] text-white' : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text-primary)]'}`}
           >
             <FiColumns className={iconSm} aria-hidden />
             Kanban
@@ -91,7 +91,7 @@ export function IssuesToolbar({
             <button
               type="button"
               onClick={() => { setColumnsOpen(true); setOpenFilterDropdown(null); }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] text-xs text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)] hover:text-[color:var(--text-primary)] transition"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] text-xs font-medium text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text-primary)] transition"
               title="Customize columns"
             >
               <FiSliders className={iconSm} aria-hidden />
@@ -103,10 +103,10 @@ export function IssuesToolbar({
           <button
             type="button"
             onClick={() => { setFiltersOpen(true); setOpenFilterDropdown(null); }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs transition ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-medium transition ${
               hasActiveFilters
-                ? 'bg-[color:var(--bg-page)] border-[color:var(--accent)] text-[color:var(--text-primary)]'
-                : 'bg-[color:var(--bg-surface)] border-[color:var(--border-subtle)] text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)] hover:text-[color:var(--text-primary)]'
+                ? 'bg-[color:var(--accent-subtle)] border-[color:var(--accent)] text-[color:var(--accent)]'
+                : 'bg-[color:var(--bg-surface)] border-[color:var(--border-subtle)] text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text-primary)]'
             }`}
           >
             <FiFilter className={iconSm} aria-hidden />
@@ -187,7 +187,7 @@ export function IssuesToolbar({
         <button
           type="button"
           onClick={() => openCreate()}
-          className="btn-primary btn-primary-sm shadow-sm shadow-indigo-900/20 inline-flex items-center justify-center gap-1.5"
+          className="btn-primary btn-primary-sm shadow-md inline-flex items-center justify-center gap-1.5 font-semibold"
         >
           <FiPlus className={iconSm} aria-hidden />
           New issue

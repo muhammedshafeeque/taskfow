@@ -137,7 +137,7 @@ export default function Projects() {
     <div className="p-8 animate-fade-in">
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold">Projects</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           {!user?.mustChangePassword &&
             Array.isArray(user?.permissions) &&
             user.permissions.includes('projects:create') && (
@@ -155,7 +155,7 @@ export default function Projects() {
         {loading ? (
           <div className="text-[color:var(--text-muted)] animate-pulse">Loading…</div>
         ) : projects.length === 0 ? (
-          <div className="text-center py-12 rounded-2xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] text-[color:var(--text-muted)]">
+          <div className="text-center py-12 rounded-xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] text-[color:var(--text-muted)]">
             No projects yet. Create one to get started.
           </div>
         ) : (
@@ -163,13 +163,13 @@ export default function Projects() {
             {projects.map((p) => (
               <li
                 key={p._id}
-                className="flex items-center justify-between p-4 rounded-xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-elevated)] transition group"
+                className="flex items-center justify-between p-4 rounded-lg bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] border-l-[3px] border-l-[color:var(--accent)] card-shadow hover:border-[color:var(--accent)]/30 hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] transition-all group"
               >
                 <Link
                   to={`/projects/${p._id}/dashboard`}
                   className="flex-1 min-w-0 block hover:opacity-90"
                 >
-                  <span className="font-medium text-sm">{p.name}</span>
+                  <span className="font-bold text-sm">{p.name}</span>
                   <span className="ml-2 text-[12px] text-[color:var(--text-muted)]">({p.key})</span>
                   {p.description && (
                     <p className="text-[12px] text-[color:var(--text-muted)] mt-0.5">
@@ -245,7 +245,7 @@ export default function Projects() {
             onClick={() => setModal(null)}
           >
             <div
-              className="w-full max-w-md bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] rounded-2xl p-6 shadow-xl animate-scale-in"
+              className="w-full max-w-md bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] rounded-xl p-6 card-shadow shadow-xl animate-scale-in"
               onClick={(e) => e.stopPropagation()}
             >
               <h2 className="text-sm font-semibold text-[color:var(--text-primary)] mb-3">

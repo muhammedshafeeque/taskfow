@@ -34,10 +34,10 @@ export default function ConfirmModal({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm bg-[color:var(--bg-modal)] border border-[color:var(--border-subtle)] rounded-2xl p-6 shadow-xl animate-scale-in"
+        className="w-full max-w-sm bg-[color:var(--bg-modal)] border border-[color:var(--border-subtle)] rounded-xl p-6 card-shadow shadow-xl animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-[color:var(--text-primary)] mb-2">{title}</h2>
+        <h2 className="text-base font-bold text-[color:var(--text-primary)] mb-2">{title}</h2>
         <div className="text-[color:var(--text-muted)] text-sm mb-6">{message}</div>
         <div className="flex justify-end gap-2">
           <button

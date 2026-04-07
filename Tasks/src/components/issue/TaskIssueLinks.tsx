@@ -115,29 +115,32 @@ const TaskIssueLinks = forwardRef<TaskIssueLinksHandle, TaskIssueLinksProps>(fun
   }
 
   return (
-    <div className="rounded-xl border border-[color:var(--border-subtle)]/90 bg-[color:var(--bg-surface)] p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-2.5">
-        <h3 className="text-[10px] font-semibold text-[color:var(--text-muted)] uppercase tracking-[0.1em]">
-          Links
-        </h3>
+    <div className="rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] card-shadow overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)]">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-muted)]">
+          Links{' '}
+          <span className="ml-1 bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] px-1.5 py-0.5 rounded-full text-[10px] font-semibold">
+            {links.length}
+          </span>
+        </span>
         {token && (
           <button
             type="button"
             onClick={() => setLinkModalOpen(true)}
-            className="text-xs font-medium px-3 py-1.5 rounded-lg text-[color:var(--accent)] hover:bg-[color:var(--accent)]/10 transition-colors"
+            className="text-xs font-medium px-2.5 py-1 rounded-md text-[color:var(--accent)] hover:bg-[color:var(--accent)]/10 transition-colors"
           >
             Link issue
           </button>
         )}
       </div>
       {links.length === 0 ? (
-        <p className="text-sm text-[color:var(--text-muted)] py-1">No links yet.</p>
+        <p className="text-sm text-[color:var(--text-muted)] italic py-6 text-center px-4">No links yet.</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="px-4 py-3 space-y-1.5">
           {links.map((link) => (
             <li
               key={link._id}
-              className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md hover:bg-[color:var(--bg-page)] group"
+              className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md border-l-2 border-l-transparent hover:border-l-[color:var(--accent)] hover:bg-[color:var(--bg-page)] transition-all group"
             >
               <Link
                 to={getIssueUrl(link)}

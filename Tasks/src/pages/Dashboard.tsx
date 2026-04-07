@@ -57,7 +57,7 @@ export default function Dashboard() {
   return (
     <div className="p-8 animate-fade-in">
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <h1 className="text-xl font-semibold mb-1">Dashboard</h1>
+        <h1 className="text-2xl font-bold mb-1">Dashboard</h1>
         <p className="text-[13px] text-[color:var(--text-muted)] mb-6">
           Select a project to view its dashboard, issues, boards, and sprints.
         </p>
@@ -65,14 +65,14 @@ export default function Dashboard() {
         <div className="mb-6">
           <Link
             to="/projects"
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[color:var(--border-subtle)] text-xs text-[color:var(--text-primary)] hover:bg-[color:var(--bg-surface)] transition"
+            className="btn-primary btn-primary-sm inline-flex items-center gap-2"
           >
             <span>All projects</span>
           </Link>
         </div>
 
         {statsLoading ? (
-          <div className="rounded-2xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] p-6 mb-8 text-center text-[color:var(--text-muted)] animate-pulse">
+          <div className="rounded-xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] p-6 mb-8 text-center text-[color:var(--text-muted)] animate-pulse">
             Loading analytics…
           </div>
         ) : stats && (stats.totalIssues > 0 || chartData.length > 0) ? (
@@ -135,9 +135,9 @@ export default function Dashboard() {
           </div>
         ) : null}
 
-        <h2 className="text-sm font-semibold mb-3">Your projects</h2>
+        <h2 className="text-sm font-bold mb-3 text-[color:var(--text-muted)] uppercase tracking-wider">Your projects</h2>
         {projects.data.length === 0 ? (
-          <div className="rounded-2xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] p-6 text-center text-[color:var(--text-muted)]">
+          <div className="rounded-xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] p-6 text-center text-[color:var(--text-muted)]">
             No projects yet. Create one from the Projects page.
           </div>
         ) : (
@@ -146,11 +146,11 @@ export default function Dashboard() {
               <Link
                 key={p._id}
                 to={`/projects/${p._id}/dashboard`}
-                className="block p-5 rounded-2xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-elevated)] transition animate-fade-in"
+                className="block p-5 rounded-xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] border-l-[3px] border-l-[color:var(--accent)] hover:border-[color:var(--accent)]/40 hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] card-shadow transition-all animate-fade-in"
               >
-                <h3 className="font-semibold text-sm">{p.name}</h3>
-                <p className="text-[12px] text-[color:var(--text-muted)] mt-0.5">{p.key}</p>
-                <p className="text-[12px] text-[color:var(--text-muted)] mt-2">Open project →</p>
+                <h3 className="font-bold text-sm">{p.name}</h3>
+                <p className="font-mono text-[11px] bg-[color:var(--bg-elevated)] inline-block px-1.5 py-0.5 rounded mt-1 text-[color:var(--text-muted)]">{p.key}</p>
+                <p className="text-[11px] font-semibold text-[color:var(--accent)] mt-3 flex items-center gap-1">Open project →</p>
               </Link>
             ))}
           </div>

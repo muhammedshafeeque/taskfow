@@ -17,11 +17,11 @@ export default function SectionCard({
 }: SectionCardProps) {
   return (
     <section
-      className={`min-w-0 rounded-2xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] p-5 ${className}`}
+      className={`min-w-0 rounded-xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] p-6 card-shadow ${className}`}
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-start justify-between gap-3 pb-3 mb-4 border-b border-[color:var(--border-subtle)]">
         <div>
-          <h2 className="text-sm font-semibold text-[color:var(--text-primary)]">
+          <h2 className="text-sm font-bold tracking-tight text-[color:var(--text-primary)]">
             {title}
           </h2>
           {description && (

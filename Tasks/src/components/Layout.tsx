@@ -250,23 +250,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="h-screen min-h-0 flex bg-[color:var(--bg-page)] text-[color:var(--text-primary)]">
       <aside
-        className={`flex flex-col border-r border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] shrink-0 transition-[width] duration-200 ease-in-out ${
+        className={`flex flex-col border-r border-[color:var(--sidebar-active-bg)] bg-[color:var(--sidebar-bg)] card-shadow shrink-0 transition-[width] duration-200 ease-in-out ${
           sidebarCollapsed ? 'w-16' : 'w-64'
         }`}
       >
-        <div className="p-4 border-b border-[color:var(--border-subtle)] flex items-center gap-2 min-h-[4.5rem]">
+        <div className="p-3 border-b border-[color:var(--sidebar-active-bg)] flex items-center gap-2 min-h-[4.5rem]">
           {sidebarCollapsed ? (
-            <span className="text-lg font-semibold tracking-tight flex-1 text-center" title="TaskFlow">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--sidebar-logo-bg)] text-[color:var(--sidebar-text-active)] font-bold text-sm flex-1" title="TaskFlow">
               TF
             </span>
           ) : (
-            <div className="min-w-0 flex-1">
-              <h1 className="text-xl font-semibold tracking-tight">TaskFlow</h1>
-              {projectId && (
-                <p className="text-xs text-[color:var(--text-muted)] mt-1 truncate" title={project?.name ?? '…'}>
-                  {projectLoading ? 'Loading…' : project?.name ?? '…'}
-                </p>
-              )}
+            <div className="min-w-0 flex-1 flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--sidebar-logo-bg)] text-[color:var(--sidebar-text-active)] font-bold text-sm shrink-0">
+                TF
+              </span>
+              <div className="min-w-0">
+                <h1 className="text-base font-bold tracking-tight text-[color:var(--sidebar-text-active)]">TaskFlow</h1>
+                {projectId && (
+                  <p className="text-[11px] text-[color:var(--sidebar-text)] mt-0.5 truncate" title={project?.name ?? '…'}>
+                    {projectLoading ? 'Loading…' : project?.name ?? '…'}
+                  </p>
+                )}
+              </div>
             </div>
           )}
           <button
@@ -274,7 +279,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             onClick={() => setSidebarCollapsed((c) => !c)}
             title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-[color:var(--text-muted)] border border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text-primary)] transition"
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md border border-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-text)] hover:bg-[color:var(--sidebar-hover-bg)] hover:text-[color:var(--sidebar-text-active)] transition"
           >
             {sidebarCollapsed ? (
               <ChevronRightIcon className="w-4 h-4" />
@@ -283,7 +288,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             )}
           </button>
         </div>
-        <nav className="flex-1 p-3 space-y-0.5 overflow-x-hidden">
+        <nav className="flex-1 p-2 space-y-0.5 overflow-x-hidden mt-1">
           {nav.map((item, i) => {
             const isProjectsLink = item.to === '/projects';
             const useEnd = 'end' in item ? (item as { end?: boolean }).end : isProjectsLink;
@@ -296,15 +301,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 className={({ isActive }) => {
                   const active =
                     isProjectsLink ? isActive : isActive || (projectId && location.pathname.startsWith(item.to));
-                  return `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition animation-delay-${
-                    (i + 1) * 100
-                  } animate-fade-in hover-elevated ${
-                    sidebarCollapsed ? 'justify-center px-0 py-2.5' : ''
-                  } ${
-                    active
-                      ? 'bg-[color:var(--bg-elevated)] text-[color:var(--text-primary)] border border-[color:var(--border-subtle)]'
-                      : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-surface)]'
-                  }`;
+                  return `sidebar-nav-item animation-delay-${(i + 1) * 100} animate-fade-in ${
+                    sidebarCollapsed ? 'justify-center' : ''
+                  } ${active ? 'active' : ''}`;
                 }}
               >
                 <span className="w-5 h-5 flex shrink-0 items-center justify-center">{item.icon}</span>
@@ -313,9 +312,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className={`p-3 border-t border-[color:var(--border-subtle)] space-y-2 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+        <div className={`p-3 border-t border-[color:var(--sidebar-active-bg)] space-y-2 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
           {!sidebarCollapsed && (
-            <div className="px-3 py-2 text-[color:var(--text-muted)] text-xs truncate" title={user?.email}>
+            <div className="px-3 py-2 text-[color:var(--sidebar-text)] text-[11px] font-medium truncate" title={user?.email}>
               {user?.name}
             </div>
           )}
@@ -323,7 +322,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             type="button"
             onClick={handleLogout}
             title="Sign out"
-            className={`flex items-center justify-center rounded-md text-[color:var(--text-muted)] border border-transparent hover:border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-surface)] transition ${
+            className={`flex items-center justify-center rounded-md text-[color:var(--sidebar-text)] border border-transparent hover:border-[color:var(--sidebar-active-bg)] hover:bg-[color:var(--sidebar-hover-bg)] hover:text-[color:var(--sidebar-text-active)] transition ${
               sidebarCollapsed ? 'w-full py-2 px-0' : 'w-full px-3 py-1.5 text-xs'
             }`}
           >
@@ -336,7 +335,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="shrink-0 flex items-center justify-end gap-3 px-4 py-2 border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)]">
+        <header className="shrink-0 flex items-center justify-end gap-3 px-4 py-2 border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] shadow-[0_1px_0_var(--border-subtle)]">
           <button
             type="button"
             onClick={toggleFullScreen}
@@ -368,7 +367,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <BellIcon className="w-3.5 h-3.5" />
               {(unreadCount > 0 || latestInboxMessage || latestPushNotification) && (
                 <span
-                  className="absolute -top-0.5 -right-0.5 min-w-2.5 h-2.5 px-1 rounded-full bg-[color:var(--accent)] ring-2 ring-[color:var(--bg-surface)] text-[10px] text-white flex items-center justify-center"
+                  className="absolute -top-0.5 -right-0.5 min-w-2.5 h-2.5 px-1 rounded-full bg-[color:var(--color-blocked)] ring-2 ring-[color:var(--bg-surface)] text-[10px] text-white flex items-center justify-center"
                   aria-hidden
                 >
                   {unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : ''}
@@ -379,7 +378,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {notifOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
-                <div className="absolute right-0 z-20 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] rounded-xl bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] shadow-2xl overflow-hidden">
+                <div className="absolute right-0 z-20 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] rounded-lg bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] shadow-[0_8px_24px_rgba(0,0,0,0.24)] overflow-hidden">
                   <div className="px-4 py-3 border-b border-[color:var(--border-subtle)] flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-[color:var(--text-primary)]">Notifications</span>
                     <div className="flex items-center gap-3">
@@ -442,7 +441,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               onFocus={() => projectId && searchResults.length > 0 && setSearchOpen(true)}
               placeholder={projectId ? 'Search by Ticket ID or title…' : 'Open a project to search issues'}
               disabled={!projectId}
-              className="w-full px-3 py-1.5 pl-8 rounded-md bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] text-xs focus:border-[color:var(--accent)] focus:ring-1 focus:ring-[color:var(--accent)]/40 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full px-3 py-1.5 pl-8 rounded-md bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] text-xs focus:bg-[color:var(--bg-surface)] focus:border-[color:var(--accent)] focus:ring-1 focus:ring-[color:var(--accent)]/40 outline-none disabled:opacity-60 disabled:cursor-not-allowed transition"
             />
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)] pointer-events-none">
               {searchLoading ? (
@@ -454,7 +453,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {searchOpen && projectId && searchResults.length > 0 && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setSearchOpen(false)} />
-                <div className="absolute right-0 z-20 mt-1 w-full rounded-md bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] shadow-xl max-h-64 overflow-y-auto">
+                <div className="absolute right-0 z-20 mt-1 w-full rounded-lg bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] shadow-[0_8px_24px_rgba(0,0,0,0.24)] max-h-64 overflow-y-auto">
                   {searchResults.map((issue) => (
                     <Link
                       key={issue._id}

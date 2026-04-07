@@ -281,7 +281,7 @@ export default function ProjectDashboard() {
   return (
     <div className="p-8 animate-fade-in">
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <h1 className="text-xl font-semibold mb-1">Project dashboard</h1>
+        <h1 className="text-2xl font-bold mb-1">Project dashboard</h1>
         <p className="text-[13px] text-[color:var(--text-muted)] mb-6">
           Overview and quick links for this project.
         </p>

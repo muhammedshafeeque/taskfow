@@ -118,7 +118,7 @@ export function ActiveFilterChips({
       {chips.map((chip) => (
         <span
           key={chip.id}
-          className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg bg-[color:var(--bg-surface)] text-[color:var(--text-primary)] text-xs border border-[color:var(--border-subtle)]"
+          className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-[color:var(--accent-subtle)] text-[color:var(--accent)] text-xs border border-[color:var(--accent)]/30"
         >
           {onOpenFilterModal ? (
             <button type="button" onClick={onOpenFilterModal} className="hover:text-[color:var(--accent)] text-left">
@@ -141,7 +141,7 @@ export function ActiveFilterChips({
         <button
           type="button"
           onClick={handleClearAll}
-          className="text-xs text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] underline"
+          className="text-xs text-[color:var(--accent)] font-medium hover:text-[color:var(--accent-muted)] hover:underline"
         >
           Clear all
         </button>

@@ -55,7 +55,7 @@ interface TaskDetailsSidebarProps {
 }
 
 const inputBase =
-  'w-full px-3 py-1.5 rounded-md bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-[color:var(--text-primary)] text-xs focus:outline-none focus:ring-1 focus:ring-[color:var(--accent)]/40 transition-colors';
+  'w-full px-3 py-1.5 rounded-md bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] text-[color:var(--text-primary)] text-xs focus:outline-none focus:ring-1 focus:ring-[color:var(--accent)]/40 focus:border-[color:var(--accent)] transition-colors';
 
 function InlineSelect<T extends string>({
   value,
@@ -382,15 +382,15 @@ export default function TaskDetailsSidebar({
   return (
     <aside className="lg:order-none order-first w-full lg:max-w-[340px]">
       <div className="sticky top-6 max-h-[calc(100vh-5rem)] overflow-y-auto space-y-4 pr-1 [scrollbar-width:thin] [scrollbar-color:var(--border-subtle)_transparent]">
-        <div className="rounded-xl border border-[color:var(--border-subtle)]/90 bg-[color:var(--bg-surface)] overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)]">
-            <span className="text-xs font-semibold tracking-tight text-[color:var(--text-primary)]">Details</span>
+        <div className="rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] card-shadow overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b-2 border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)]">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-muted)]">Details</span>
           </div>
 
           <div className="divide-y divide-[color:var(--border-subtle)]/70">
             {/* Status */}
             <div className="px-4 py-3">
-              <label className="flex items-center gap-1.5 text-[10px] font-medium text-[color:var(--text-muted)] uppercase tracking-[0.08em] mb-1.5">
+              <label className="flex items-center gap-1.5 text-[10px] font-semibold text-[color:var(--text-muted)] uppercase tracking-[0.1em] mb-1.5">
                 {(() => {
                   const meta = getStatusMeta(issue.status);
                   return (
@@ -503,7 +503,7 @@ export default function TaskDetailsSidebar({
                       <span className="flex items-center gap-2">
                         {assignee && label !== 'Unassigned' ? (
                           <>
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-[9px] font-semibold text-[color:var(--text-primary)] shrink-0">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--accent-subtle)] border border-[color:var(--accent)]/20 text-[9px] font-bold text-[color:var(--accent)] shrink-0">
                               {getInitials(label)}
                             </span>
                             <span className="text-[color:var(--text-primary)] truncate">{label}</span>
@@ -550,7 +550,7 @@ export default function TaskDetailsSidebar({
                     return (
                       <span
                         key={w.user._id}
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-[9px] font-semibold text-[color:var(--text-primary)]"
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--accent-subtle)] border border-[color:var(--accent)]/20 text-[9px] font-bold text-[color:var(--accent)]"
                         title={tooltip}
                       >
                         {getInitials(w.user.name)}
@@ -723,7 +723,7 @@ export default function TaskDetailsSidebar({
             </div>
 
             {/* Timestamps */}
-            <div className="px-4 py-3 bg-[color:var(--bg-surface)]">
+            <div className="px-4 py-3 bg-[color:var(--bg-elevated)]">
               <div className="flex justify-between text-[10px] text-[color:var(--text-muted)]">
                 <span>Created</span>
                 <span className="text-[color:var(--text-primary)]">{formatDate(issue.createdAt)}</span>

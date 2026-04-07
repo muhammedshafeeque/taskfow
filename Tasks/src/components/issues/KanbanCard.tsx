@@ -46,14 +46,14 @@ export function KanbanCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group/card p-3 rounded-lg bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-elevated)] transition ${
+      className={`group/card p-3.5 rounded-md bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-elevated)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.18)] card-shadow transition-all ${
         isDragging ? 'opacity-50' : ''
       } ${isUpdating ? 'animate-pulse' : ''}`}
     >
       <div className="flex gap-2 min-w-0">
         <button
           type="button"
-          className="shrink-0 touch-none cursor-grab active:cursor-grabbing text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] p-0.5 -m-0.5"
+          className="shrink-0 touch-none cursor-grab active:cursor-grabbing text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] p-0.5 -m-0.5 opacity-40 group-hover/card:opacity-70 transition-opacity"
           aria-label="Drag to move"
           {...listeners}
           {...attributes}
@@ -67,8 +67,8 @@ export function KanbanCard({
             to={pid ? `/projects/${pid}/issues/${encodeURIComponent(getIssueKey(issue))}` : '#'}
             className="block min-w-0"
           >
-            <p className="text-[11px] font-mono text-[color:var(--text-muted)]">{getIssueKey(issue)}</p>
-            <p className="text-sm font-medium text-[color:var(--text-primary)] truncate">{issue.title}</p>
+            <p className="text-[11px] font-mono font-semibold text-[color:var(--text-muted)]">{getIssueKey(issue)}</p>
+            <p className="text-sm font-semibold text-[color:var(--text-primary)] truncate">{issue.title}</p>
             <div className="flex flex-wrap items-center gap-1.5 mt-1">
               <MetaBadge label={issue.type} meta={typeMeta} />
               <MetaBadge label={issue.priority} meta={priorityMeta} />
@@ -86,7 +86,7 @@ export function KanbanCard({
               <p className="text-[11px] text-[color:var(--text-muted)] mt-1 truncate">{issue.assignee.name}</p>
             )}
           </Link>
-          <div className="flex gap-2 mt-2 pt-2 border-t border-[color:var(--border-subtle)] opacity-0 group-hover/card:opacity-100 transition">
+          <div className="flex gap-2 mt-2.5 pt-2.5 border-t border-[color:var(--border-subtle)] opacity-0 group-hover/card:opacity-100 transition">
             {onToggleWatch && (
               <WatchButton
                 watching={watching ?? false}

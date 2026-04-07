@@ -20,30 +20,33 @@ export default function TaskSubtasks({
     : '#';
 
   return (
-    <div className="rounded-xl border border-[color:var(--border-subtle)]/90 bg-[color:var(--bg-surface)] p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-2.5">
-        <h3 className="text-[10px] font-semibold text-[color:var(--text-muted)] uppercase tracking-[0.1em]">
-          Subtasks
-        </h3>
+    <div className="rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] card-shadow overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)]">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-muted)]">
+          Subtasks{' '}
+          <span className="ml-1 bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] px-1.5 py-0.5 rounded-full text-[10px] font-semibold">
+            {subtasks.length}
+          </span>
+        </span>
         {projectId && (
           <Link
             to={addSubtaskUrl}
-            className="text-xs font-medium px-3 py-1.5 rounded-lg text-[color:var(--accent)] hover:bg-[color:var(--accent)]/10 transition-colors"
+            className="text-xs font-medium px-2.5 py-1 rounded-md text-[color:var(--accent)] hover:bg-[color:var(--accent)]/10 transition-colors"
           >
             Add subtask
           </Link>
         )}
       </div>
       {subtasks.length === 0 ? (
-        <p className="text-sm text-[color:var(--text-muted)] py-1">No subtasks yet.</p>
+        <p className="text-sm text-[color:var(--text-muted)] italic py-6 text-center px-4">No subtasks yet.</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="px-4 py-3 space-y-1.5">
           {subtasks.map((st) => {
             const meta = getStatusMeta(st.status);
             return (
               <li
                 key={st._id}
-                className="flex items-center gap-3 py-2 px-2 rounded-md hover:bg-[color:var(--bg-page)]"
+                className="flex items-center gap-3 py-2 px-2 rounded-md border-l-2 border-l-transparent hover:border-l-[color:var(--color-inprogress)] hover:bg-[color:var(--bg-page)] transition-all"
               >
                 <Link
                   to={`/projects/${projectId}/issues/${encodeURIComponent(getIssueKey(st))}`}
