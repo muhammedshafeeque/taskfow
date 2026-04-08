@@ -36,7 +36,7 @@ export function IssuesListView({
   navigate,
 }: IssuesListViewProps) {
   return (
-    <div className="rounded-xl border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] overflow-hidden">
+    <div className="rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] card-shadow overflow-hidden">
       <ul className="divide-y divide-[color:var(--border-subtle)]/70">
         {issues.map((issue) => {
           const pid = projectId ?? (typeof issue.project === 'object' && issue.project ? issue.project._id : '');
@@ -56,15 +56,15 @@ export function IssuesListView({
                 if (pid) navigate(`/projects/${pid}/issues/${encodeURIComponent(getIssueKey(issue))}`);
               }
             }}
-            className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-[color:var(--bg-elevated)] transition group cursor-pointer"
+            className="flex items-center justify-between gap-4 pl-3 pr-4 py-3 hover:bg-[color:var(--bg-elevated)] transition group cursor-pointer border-l-[3px] border-l-transparent hover:border-l-[color:var(--color-inprogress)]"
           >
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <span className="shrink-0 font-mono text-[11px] text-[color:var(--text-muted)] w-20">
+              <span className="shrink-0 bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold text-[color:var(--text-muted)] w-24 inline-block truncate">
                 {getIssueKey(issue)}
               </span>
               <Link
                 to={pid ? `/projects/${pid}/issues/${encodeURIComponent(getIssueKey(issue))}` : '#'}
-                className="font-medium text-[color:var(--text-primary)] truncate hover:underline min-w-0 text-sm"
+                className="font-semibold text-[color:var(--text-primary)] truncate hover:underline min-w-0 text-sm"
               >
                 {issue.title}
               </Link>

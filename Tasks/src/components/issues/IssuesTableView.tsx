@@ -154,17 +154,17 @@ export function IssuesTableView(props: IssuesTableViewProps) {
   const { issues, projectId, project, visibleColumnIds, selectedIssueIds, toggleSelectIssue, toggleSelectAll, getIssueKey, getTypeMeta, getPriorityMeta, getStatusMeta, watchingStatus, watchingLoadingId, handleToggleWatch, openEdit, setConfirmDeleteIssue: _setConfirmDeleteIssue2, navigate } = props;
 
   return (
-    <div className="rounded-xl border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] overflow-hidden">
+    <div className="rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] card-shadow overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)]">
+            <tr className="border-b-2 border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)]">
               <th className="px-2 py-3 w-10">
                 <input type="checkbox" checked={issues.length > 0 && selectedIssueIds.size === issues.length} onChange={toggleSelectAll} className="rounded border-[color:var(--border-subtle)]" aria-label="Select all" />
               </th>
               {visibleColumnIds.map((colId) => {
                 const col = ISSUE_TABLE_COLUMNS.find((c) => c.id === colId);
-                return <th key={colId} className={`px-4 py-3 font-medium ${col?.width ?? ''} ${colId === 'actions' ? 'text-right' : ''}`}>{col?.label ?? colId}</th>;
+                return <th key={colId} className={`px-4 py-3 font-semibold uppercase text-[10px] tracking-wider ${col?.width ?? ''} ${colId === 'actions' ? 'text-right' : ''}`}>{col?.label ?? colId}</th>;
               })}
             </tr>
           </thead>
@@ -176,7 +176,7 @@ export function IssuesTableView(props: IssuesTableViewProps) {
                 tabIndex={0}
                 onClick={(e) => { if ((e.target as HTMLElement).closest('a, button')) return; const pid = projectId ?? (typeof issue.project === 'object' && issue.project ? issue.project._id : ''); if (pid) navigate(`/projects/${pid}/issues/${encodeURIComponent(getIssueKey(issue))}`); }}
                 onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const pid = projectId ?? (typeof issue.project === 'object' && issue.project ? issue.project._id : ''); if (pid) navigate(`/projects/${pid}/issues/${encodeURIComponent(getIssueKey(issue))}`); } }}
-                className="group bg-[color:var(--bg-surface)] hover:bg-[color:var(--bg-elevated)] transition cursor-pointer"
+                className="group bg-[color:var(--bg-surface)] hover:bg-[color:var(--bg-elevated)] transition cursor-pointer border-l-[3px] border-l-transparent hover:border-l-[color:var(--color-inprogress)]"
               >
                 <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" checked={selectedIssueIds.has(issue._id)} onChange={() => toggleSelectIssue(issue._id)} className="rounded border-[color:var(--border-subtle)]" aria-label={`Select ${getIssueKey(issue)}`} />

@@ -14,19 +14,19 @@ export function KanbanColumn({ status, count, getStatusMeta, children }: KanbanC
   return (
     <div
       ref={setNodeRef}
-      className={`w-72 shrink-0 rounded-xl overflow-hidden transition-colors border ${
+      className={`w-[280px] shrink-0 rounded-lg overflow-hidden transition-all border card-shadow ${
         isOver
-          ? 'border-[color:var(--accent)] ring-1 ring-[color:var(--accent)]/40'
+          ? 'border-[color:var(--accent)] ring-2 ring-[color:var(--accent)]/50 ring-offset-2 ring-offset-[color:var(--bg-page)]'
           : 'border-[color:var(--border-subtle)]'
       } bg-[color:var(--bg-surface)]`}
     >
-      <div className="p-3 border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)]">
+      <div className="kanban-col-header justify-between">
         <div className="flex items-center gap-2">
           <MetaBadge label={status} meta={statusMeta} />
-          <span className="text-[11px] text-[color:var(--text-muted)]">{count} issue(s)</span>
         </div>
+        <span className="ml-auto bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] px-1.5 py-0.5 rounded-full text-[11px] font-semibold text-[color:var(--text-muted)]">{count}</span>
       </div>
-      <div className="p-2 min-h-[120px] space-y-2">{children}</div>
+      <div className="p-2.5 min-h-[120px] space-y-2.5">{children}</div>
     </div>
   );
 }

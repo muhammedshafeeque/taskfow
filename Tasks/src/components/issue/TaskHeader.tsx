@@ -12,7 +12,7 @@ import { getIssueKey } from '../../lib/api';
 import { MetaBadge } from '../MetaBadge';
 
 const actionBtnClass =
-  'inline-flex items-center justify-center gap-1.5 text-center text-[11px] font-medium px-2.5 py-1.5 rounded-md border border-[color:var(--border-subtle)] text-[color:var(--text-primary)] bg-[color:var(--bg-elevated)]/50 hover:bg-[color:var(--bg-elevated)] hover:border-[color:var(--text-muted)]/25 transition-colors disabled:opacity-40 disabled:pointer-events-none';
+  'inline-flex items-center justify-center gap-1.5 text-center text-[11px] font-medium px-2.5 py-1.5 rounded-md border border-[color:var(--border-subtle)] text-[color:var(--text-primary)] bg-[color:var(--bg-surface)] hover:bg-[color:var(--bg-elevated)] hover:border-[color:var(--text-muted)]/25 shadow-sm transition-colors disabled:opacity-40 disabled:pointer-events-none';
 
 const primaryIssueActionClass =
   'btn-primary btn-primary-sm font-medium shadow-sm shadow-indigo-900/15 text-[11px] inline-flex items-center justify-center gap-1.5';
@@ -81,7 +81,7 @@ export default function TaskHeader({
 
   return (
     <div>
-      <span className="text-xs text-[color:var(--text-muted)] font-medium font-mono tracking-tight">{issueKey}</span>
+      <span className="bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] px-2 py-0.5 rounded text-[11px] font-mono font-semibold text-[color:var(--text-muted)] inline-block mb-2">{issueKey}</span>
       {editingTitle ? (
         <input
           ref={inputRef}
@@ -90,12 +90,12 @@ export default function TaskHeader({
           onChange={(e) => setTitleValue(e.target.value)}
           onBlur={saveTitle}
           onKeyDown={handleKeyDown}
-          className="mt-1.5 block w-full text-xl sm:text-2xl font-semibold text-[color:var(--text-primary)] leading-snug bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 focus:border-[color:var(--accent)]"
+          className="mt-1.5 block w-full text-xl sm:text-2xl font-bold text-[color:var(--text-primary)] leading-snug bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 focus:border-[color:var(--accent)]"
           placeholder="Issue title"
         />
       ) : (
         <h1
-          className="text-xl sm:text-2xl font-semibold text-[color:var(--text-primary)] leading-snug mt-1.5 break-words cursor-text hover:ring-1 hover:ring-[color:var(--border-subtle)] hover:rounded-lg px-1 -mx-1 transition-colors"
+          className="text-xl sm:text-2xl font-bold text-[color:var(--text-primary)] leading-snug mt-1.5 break-words cursor-text hover:ring-1 hover:ring-[color:var(--border-subtle)] hover:rounded-lg px-1 -mx-1 transition-colors"
           onClick={() => onUpdateTitle && setEditingTitle(true)}
           title={onUpdateTitle ? 'Click to edit title' : undefined}
         >

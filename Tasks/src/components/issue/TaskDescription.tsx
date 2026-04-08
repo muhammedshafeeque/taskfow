@@ -32,16 +32,16 @@ export default function TaskDescription({ issue, onUpdateDescription }: TaskDesc
 
   if (editing && onUpdateDescription) {
     return (
-      <section>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-[10px] font-semibold text-[color:var(--text-muted)] uppercase tracking-[0.1em]">
+      <section className="rounded-lg bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] card-shadow overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-muted)]">
             Description
-          </h2>
+          </span>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="text-xs text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] transition-colors"
+              className="text-xs px-2.5 py-1 rounded-md text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-page)] transition-colors"
             >
               Cancel
             </button>
@@ -49,13 +49,13 @@ export default function TaskDescription({ issue, onUpdateDescription }: TaskDesc
               type="button"
               onClick={() => handleSave(editValue)}
               disabled={saving}
-              className="text-xs font-medium text-[color:var(--accent)] hover:underline disabled:opacity-50"
+              className="text-xs font-medium px-2.5 py-1 rounded-md bg-[color:var(--accent)] text-white hover:opacity-90 transition disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Done'}
             </button>
           </div>
         </div>
-        <div data-description-editor>
+        <div className="px-4 py-4" data-description-editor>
           <DescriptionEditor
             value={editValue}
             onChange={setEditValue}
@@ -67,11 +67,11 @@ export default function TaskDescription({ issue, onUpdateDescription }: TaskDesc
   }
 
   return (
-    <section>
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-[10px] font-semibold text-[color:var(--text-muted)] uppercase tracking-[0.1em]">
+    <section className="rounded-lg bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] card-shadow overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)]">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-muted)]">
           Description
-        </h2>
+        </span>
         {onUpdateDescription && (
           <button
             type="button"
@@ -79,17 +79,17 @@ export default function TaskDescription({ issue, onUpdateDescription }: TaskDesc
               setEditValue(issue.description ?? '');
               setEditing(true);
             }}
-            className="text-xs font-medium px-3 py-1.5 rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-elevated)] transition-colors"
+            className="text-xs font-medium px-2.5 py-1 rounded-md text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-page)] transition-colors"
           >
             Edit
           </button>
         )}
       </div>
-      <div className="rounded-xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)]/90 p-4 shadow-sm">
+      <div className="px-4 py-4">
         {issue.description ? (
           <RichTextContent body={issue.description} />
         ) : (
-          <p className="text-sm text-[color:var(--text-muted)] italic">
+          <p className="text-sm text-[color:var(--text-muted)] italic py-6 text-center">
             {onUpdateDescription ? 'Add a description…' : 'No description.'}
           </p>
         )}

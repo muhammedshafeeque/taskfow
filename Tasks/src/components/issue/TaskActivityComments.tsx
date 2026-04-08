@@ -36,18 +36,18 @@ export default function TaskActivityComments({
   const [activeTab, setActiveTab] = useState<Tab>('comments');
 
   return (
-    <section>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3">
-        <h2 className="text-[10px] font-semibold text-[color:var(--text-muted)] uppercase tracking-[0.1em] shrink-0">
+    <section className="rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] card-shadow overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)]">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-muted)] shrink-0">
           Activity
-        </h2>
-        <div className="flex rounded-lg bg-[color:var(--bg-elevated)]/40 border border-[color:var(--border-subtle)]/90 p-0.5">
+        </span>
+        <div className="flex gap-1">
           <button
             type="button"
             onClick={() => setActiveTab('comments')}
-            className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === 'comments'
-                ? 'bg-[color:var(--bg-page)] text-[color:var(--text-primary)]'
+                ? 'bg-[color:var(--bg-surface)] text-[color:var(--text-primary)] border border-[color:var(--border-subtle)] shadow-sm font-semibold'
                 : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)]'
             }`}
           >
@@ -56,9 +56,9 @@ export default function TaskActivityComments({
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === 'history'
-                ? 'bg-[color:var(--bg-page)] text-[color:var(--text-primary)]'
+                ? 'bg-[color:var(--bg-surface)] text-[color:var(--text-primary)] border border-[color:var(--border-subtle)] shadow-sm font-semibold'
                 : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)]'
             }`}
           >
@@ -67,9 +67,9 @@ export default function TaskActivityComments({
           <button
             type="button"
             onClick={() => setActiveTab('time')}
-            className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === 'time'
-                ? 'bg-[color:var(--bg-page)] text-[color:var(--text-primary)]'
+                ? 'bg-[color:var(--bg-surface)] text-[color:var(--text-primary)] border border-[color:var(--border-subtle)] shadow-sm font-semibold'
                 : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)]'
             }`}
           >
@@ -78,44 +78,42 @@ export default function TaskActivityComments({
         </div>
       </div>
 
-      <div className="rounded-xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)]/90 overflow-hidden shadow-sm">
-        {activeTab === 'comments' && (
-          <div className="p-4">
-            <TaskCommentBox
-              onSubmit={onAddComment}
-              submitting={submittingComment}
-              mentionUsers={mentionUsers}
-              placeholder="Add a comment… (supports **bold**, *italic*, `code`, images, videos)"
-            />
-            <ul className="space-y-3 mt-4">
-              {comments.length === 0 ? (
-                <li className="text-[color:var(--text-muted)] text-xs py-4">No comments yet.</li>
-              ) : (
-                comments.map((c) => (
-                  <li key={c._id}>
-                    <TaskCommentItem comment={c} />
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-        )}
-        {activeTab === 'history' && (
-          <div className="p-4">
-            <TaskHistoryStack issue={issue} />
-          </div>
-        )}
-        {activeTab === 'time' && (
-          <div className="p-4 space-y-4">
-            <WorkLogInput onAdd={onAddWorkLog} submitting={submittingWorkLog} />
-            <WorkLogList
-              logs={workLogs}
-              currentUserId={currentUserId}
-              onDelete={onDeleteWorkLog}
-            />
-          </div>
-        )}
-      </div>
+      {activeTab === 'comments' && (
+        <div className="px-4 py-4">
+          <TaskCommentBox
+            onSubmit={onAddComment}
+            submitting={submittingComment}
+            mentionUsers={mentionUsers}
+            placeholder="Add a comment… (supports **bold**, *italic*, `code`, images, videos)"
+          />
+          <ul className="space-y-3 mt-4">
+            {comments.length === 0 ? (
+              <li className="text-[color:var(--text-muted)] text-xs py-4 text-center italic">No comments yet.</li>
+            ) : (
+              comments.map((c) => (
+                <li key={c._id}>
+                  <TaskCommentItem comment={c} />
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+      {activeTab === 'history' && (
+        <div className="px-4 py-4">
+          <TaskHistoryStack issue={issue} />
+        </div>
+      )}
+      {activeTab === 'time' && (
+        <div className="px-4 py-4 space-y-4">
+          <WorkLogInput onAdd={onAddWorkLog} submitting={submittingWorkLog} />
+          <WorkLogList
+            logs={workLogs}
+            currentUserId={currentUserId}
+            onDelete={onDeleteWorkLog}
+          />
+        </div>
+      )}
     </section>
   );
 }

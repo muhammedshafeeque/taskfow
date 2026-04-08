@@ -15,7 +15,7 @@ interface MetaBadgeProps {
 export function MetaBadge({ label, meta, className = '' }: MetaBadgeProps) {
   return (
     <span
-      className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[11px] bg-[color:var(--bg-page)] border border-[color:var(--border-subtle)] text-[color:var(--text-primary)] ${className}`}
+      className={`inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium tracking-wide bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] text-[color:var(--text-muted)] ${className}`}
       style={
         meta?.color
           ? { backgroundColor: `${meta.color}20`, color: meta.color, borderColor: `${meta.color}40` }

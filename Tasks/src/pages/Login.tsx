@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiAlertCircle, FiLock, FiLogIn, FiMail } from 'react-icons/fi';
+import { FaMicrosoft } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
-import { OAuthButtons } from '../components/auth/OAuthButtons';
+import { authApi } from '../lib/api';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -60,6 +61,20 @@ export default function Login() {
     run();
   }, [oauthCode, oauthState, microsoftSso, msRedirectUri, navigate]);
 
+  async function startMicrosoftLogin() {
+    setSsoLoading(true);
+    const res = await authApi.microsoftSsoAuthorizeUrl(msRedirectUri);
+    setSsoLoading(false);
+    if (!res.success || !res.data?.url) {
+      setError('Could not start Microsoft sign-in. Please try again.');
+      return;
+    }
+    if (res.data.state) {
+      sessionStorage.setItem('ms_oauth_state', res.data.state);
+    }
+    window.location.href = res.data.url;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -85,13 +100,13 @@ export default function Login() {
       style={{ background: 'var(--auth-page-bg)' }}
     >
       <div className="w-full max-w-5xl animate-scale-in">
-        <div className="grid overflow-hidden rounded-3xl border border-[color:var(--border-subtle)] bg-[color:var(--bg-modal)]/90 shadow-2xl backdrop-blur lg:grid-cols-[1.05fr_1fr]">
-          <section className="relative hidden lg:flex flex-col justify-between border-r border-[color:var(--border-subtle)]/70 bg-[color:var(--bg-elevated)]/65 p-10">
+        <div className="grid overflow-hidden rounded-2xl border border-[color:var(--border-subtle)] bg-[color:var(--bg-modal)] shadow-[0_24px_64px_rgba(0,0,0,0.4)] lg:grid-cols-[1.05fr_1fr]">
+          <section className="relative hidden lg:flex flex-col justify-between border-r border-[color:var(--border-subtle)]/70 bg-[color:var(--bg-elevated)] p-10">
             <div>
-              <span className="inline-flex items-center rounded-full border border-[color:var(--border-subtle)] bg-[color:var(--bg-modal)]/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
+              <span className="inline-flex items-center rounded-full border border-transparent bg-[color:var(--accent)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
                 TaskFlow
               </span>
-              <h1 className="mt-5 text-4xl font-bold leading-tight text-[color:var(--text-primary)]">
+              <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-[color:var(--text-primary)]">
                 Plan faster.
                 <br />
                 Deliver smarter.
@@ -102,15 +117,15 @@ export default function Login() {
             </div>
             <div className="space-y-3 text-sm text-[color:var(--text-muted)]">
               <p className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-done)]" />
                 Unified issue tracking and reporting
               </p>
               <p className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-done)]" />
                 Real-time collaboration with your team
               </p>
               <p className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-done)]" />
                 Better visibility from backlog to delivery
               </p>
             </div>
@@ -118,12 +133,12 @@ export default function Login() {
 
           <section className="p-6 sm:p-8 lg:p-10">
             <div className="mb-6 lg:hidden">
-              <span className="inline-flex items-center rounded-full border border-[color:var(--border-subtle)] bg-[color:var(--bg-modal)]/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
+              <span className="inline-flex items-center rounded-full border border-transparent bg-[color:var(--accent)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
                 TaskFlow
               </span>
             </div>
             <div className="mb-7">
-              <h2 className="text-3xl font-bold tracking-tight text-[color:var(--text-primary)]">Welcome back</h2>
+              <h2 className="text-2xl font-bold tracking-tight text-[color:var(--text-primary)]">Welcome back</h2>
               <p className="mt-1.5 text-sm text-[color:var(--text-muted)]">Sign in to continue to your workspace</p>
             </div>
 
@@ -151,7 +166,7 @@ export default function Login() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="w-full rounded-xl border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] py-3 pl-11 pr-4 text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] transition focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/45"
+                      className="w-full rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] py-3 pl-11 pr-4 text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] transition focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/45"
                       placeholder="you@example.com"
                     />
                   </div>
@@ -170,7 +185,7 @@ export default function Login() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="w-full rounded-xl border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] py-3 pl-11 pr-4 text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] transition focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/45"
+                      className="w-full rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] py-3 pl-11 pr-4 text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] transition focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/45"
                       placeholder="••••••••"
                     />
                   </div>
@@ -192,9 +207,15 @@ export default function Login() {
                 <div className="h-px flex-1 bg-[color:var(--border-subtle)]" />
               </div>
 
-              <div className="mt-5">
-                <OAuthButtons />
-              </div>
+              <button
+                type="button"
+                onClick={startMicrosoftLogin}
+                disabled={loading || ssoLoading}
+                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] px-4 py-3 font-medium text-[color:var(--text-primary)] transition hover:bg-[color:var(--bg-surface)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FaMicrosoft className="text-lg text-sky-500" />
+                {ssoLoading ? 'Signing in with Microsoft…' : 'Sign in with Microsoft'}
+              </button>
 
               <p className="mt-6 text-center text-sm text-[color:var(--text-muted)]">
                 <Link to="/forgot-password" title="Reset your password" className="font-medium text-[color:var(--accent)] hover:underline">

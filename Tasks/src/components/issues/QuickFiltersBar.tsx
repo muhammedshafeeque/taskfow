@@ -62,14 +62,14 @@ export function QuickFiltersBar({
   return (
     <div className="flex flex-wrap items-center gap-3 mb-4 py-3 border-b border-[color:var(--border-subtle)]">
       <span className="text-[11px] font-semibold text-[color:var(--text-muted)] uppercase tracking-wider">Quick filters</span>
-      <div className="flex rounded-lg border border-[color:var(--border-subtle)] overflow-hidden bg-[color:var(--bg-surface)]">
+      <div className="flex rounded-md border border-[color:var(--border-subtle)] overflow-hidden bg-[color:var(--bg-page)]">
         <button
           type="button"
           onClick={() => updateUrl({ quickFilter: 'my', page: 1 })}
-          className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs transition ${
+          className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium transition ${
             quickFilter === 'my'
-              ? 'bg-[color:var(--bg-page)] text-[color:var(--text-primary)]'
-              : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)]'
+              ? 'bg-[color:var(--accent)] text-white'
+              : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text-primary)]'
           }`}
         >
           <FiUser className={qfIcon} aria-hidden />
@@ -78,10 +78,10 @@ export function QuickFiltersBar({
         <button
           type="button"
           onClick={() => updateUrl({ quickFilter: 'open', page: 1 })}
-          className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs transition ${
+          className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium transition ${
             quickFilter === 'open'
-              ? 'bg-[color:var(--bg-page)] text-[color:var(--text-primary)]'
-              : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)]'
+              ? 'bg-[color:var(--accent)] text-white'
+              : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text-primary)]'
           }`}
         >
           <FiEye className={qfIcon} aria-hidden />
@@ -90,10 +90,10 @@ export function QuickFiltersBar({
         <button
           type="button"
           onClick={() => updateUrl({ quickFilter: 'all', page: 1 })}
-          className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs transition ${
+          className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium transition ${
             quickFilter === 'all'
-              ? 'bg-[color:var(--bg-page)] text-[color:var(--text-primary)]'
-              : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-page)]'
+              ? 'bg-[color:var(--accent)] text-white'
+              : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-elevated)] hover:text-[color:var(--text-primary)]'
           }`}
         >
           <FiGrid className={qfIcon} aria-hidden />
@@ -119,7 +119,7 @@ export function QuickFiltersBar({
             <FiChevronDown className={`${qfIcon} transition ${savedDropdownOpen ? '-rotate-180' : ''}`} aria-hidden />
           </button>
           {savedDropdownOpen && (
-            <div className="absolute left-0 top-full z-20 mt-1 py-1 min-w-[180px] rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)] shadow-xl max-h-64 overflow-y-auto">
+            <div className="absolute left-0 top-full z-20 mt-1 py-1 min-w-[180px] rounded-md border border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)] shadow-[0_8px_24px_rgba(0,0,0,0.2)] max-h-64 overflow-y-auto">
               {savedFilters.map((sf) => (
                 <div
                   key={sf.id}
