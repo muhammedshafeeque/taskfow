@@ -18,7 +18,6 @@ import {
 } from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
 import {
-  TaskBreadcrumb,
   TaskHeader,
   TaskDescription,
   TaskSecondaryTabs,
@@ -307,13 +306,6 @@ export default function IssueDetail() {
   return (
     <div className="h-full flex flex-col animate-fade-in">
       <div className="flex-1 overflow-auto">
-        <div className="bg-[color:var(--bg-surface)] border-b border-[color:var(--border-subtle)] px-4 sm:px-6 lg:px-8 py-5">
-          <TaskBreadcrumb
-            projectId={projectId}
-            projectName={projectName}
-            issueKey={getIssueKey(issue)}
-          />
-        </div>
         <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(260px,340px)] gap-6">
             <div className="min-w-0 space-y-4">
@@ -321,6 +313,7 @@ export default function IssueDetail() {
                 issue={issue}
                 issueId={issue._id}
                 projectId={projectId}
+                projectName={projectName}
                 canLinkAndAttach={!!token}
                 onOpenLinkModal={() => secondaryTabsRef.current?.openLinkModal()}
                 onAttach={() => secondaryTabsRef.current?.openFilePicker()}

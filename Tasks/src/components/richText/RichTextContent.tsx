@@ -74,7 +74,7 @@ function RichTextAttachmentBlock({ url, name }: { url: string; name: string }) {
   const href = resolveMediaUrl(url);
   const fileName = name || 'attachment';
   return (
-    <div className="my-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)] px-2.5 py-1.5 text-[11px] text-[color:var(--text-primary)]">
+    <div className="group my-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)] px-2.5 py-1.5 text-[11px] text-[color:var(--text-primary)]">
       <span className="inline-flex min-w-0 flex-1 items-center gap-2 truncate font-medium" title={fileName}>
         <span className="inline-flex h-3.5 w-3.5 shrink-0 text-[color:var(--text-muted)]" aria-hidden>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -83,7 +83,11 @@ function RichTextAttachmentBlock({ url, name }: { url: string; name: string }) {
         </span>
         {fileName}
       </span>
-      <AttachmentDownloadLinks href={href} fileName={fileName} />
+      <AttachmentDownloadLinks
+        href={href}
+        fileName={fileName}
+        className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+      />
     </div>
   );
 }
@@ -186,7 +190,7 @@ function injectImageDownloadControls(html: string): string {
     const safeDownloadHref = escapeHtmlAttr(downloadHref);
     const safeName = escapeHtmlAttr(fileName);
 
-    return `<figure class="my-2"><a href="${safeOpenHref}" target="_blank" rel="noopener noreferrer">${full}</a><figcaption class="mt-1"><span class="inline-flex items-center gap-2"><a href="${safeOpenHref}" target="_blank" rel="noopener noreferrer" class="text-[11px] font-medium text-[color:var(--accent)] hover:underline">Open</a><a href="${safeDownloadHref}" download="${safeName}" class="text-[11px] font-medium text-[color:var(--accent)] hover:underline">Download</a></span></figcaption></figure>`;
+    return `<figure class="group relative my-2"><a href="${safeOpenHref}" target="_blank" rel="noopener noreferrer">${full}</a><figcaption class="pointer-events-none absolute inset-x-2 bottom-2"><span class="pointer-events-auto inline-flex items-center gap-2 rounded-md bg-black/60 px-2 py-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"><a href="${safeOpenHref}" target="_blank" rel="noopener noreferrer" class="text-[11px] font-medium text-white hover:underline">Open</a><a href="${safeDownloadHref}" download="${safeName}" class="text-[11px] font-medium text-white hover:underline">Download</a></span></figcaption></figure>`;
   });
 }
 
@@ -242,7 +246,7 @@ function MarkdownRichBody({ body }: { body: string }) {
             remarkPlugins={[remarkGfm]}
             components={{
               img: ({ src, alt }) => (
-                <span className="inline-block my-1">
+                <span className="group relative inline-block my-1">
                   <a href={resolveMediaUrl(src || '')} target="_blank" rel="noopener noreferrer">
                     <img
                       src={resolveMediaUrl(src || '')}
@@ -250,10 +254,12 @@ function MarkdownRichBody({ body }: { body: string }) {
                       className="max-w-full max-h-[480px] object-contain w-auto cursor-zoom-in rounded-lg border border-[color:var(--border-subtle)]"
                     />
                   </a>
-                  <span className="mt-1 block">
+                  <span className="absolute inset-x-2 bottom-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                     <AttachmentDownloadLinks
                       href={resolveMediaUrl(src || '')}
                       fileName={(alt || '').trim() || getFileNameFromUrl(src || '', 'image')}
+                      className="rounded-md bg-black/60 px-2 py-1"
+                      linkClassName="text-[11px] font-medium text-white hover:underline"
                     />
                   </span>
                 </span>

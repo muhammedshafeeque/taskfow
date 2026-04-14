@@ -179,7 +179,7 @@ const TaskAttachments = forwardRef<TaskAttachmentsHandle, TaskAttachmentsProps>(
                         </button>
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)]/70 px-2 py-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-[color:var(--border-subtle)] bg-[color:var(--bg-elevated)]/70 px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <span className="text-[10px] text-[color:var(--text-muted)] truncate min-w-0 flex-1" title={a.originalName}>
                         {a.originalName}
                       </span>
@@ -196,7 +196,7 @@ const TaskAttachments = forwardRef<TaskAttachmentsHandle, TaskAttachmentsProps>(
           )}
 
           {videoAttachments.map((a) => (
-            <div key={a._id} className="px-4 py-3 border-t border-[color:var(--border-subtle)] first:border-t-0">
+            <div key={a._id} className="group px-4 py-3 border-t border-[color:var(--border-subtle)] first:border-t-0">
               <video
                 src={getDownloadUrl(a.url)}
                 className="w-full max-h-72 rounded-lg bg-black"
@@ -206,7 +206,7 @@ const TaskAttachments = forwardRef<TaskAttachmentsHandle, TaskAttachmentsProps>(
               />
               <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5">
                 <span className="text-xs text-[color:var(--text-muted)] truncate min-w-0">{a.originalName}</span>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                   <AttachmentDownloadLinks
                     href={getDownloadUrl(a.url)}
                     fileName={a.originalName}
@@ -244,7 +244,7 @@ const TaskAttachments = forwardRef<TaskAttachmentsHandle, TaskAttachmentsProps>(
                     {formatSize(a.size)}
                   </span>
                 </div>
-                <div className="mt-0.5">
+                <div className="mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <AttachmentDownloadLinks href={getDownloadUrl(a.url)} fileName={a.originalName} />
                 </div>
               </div>
