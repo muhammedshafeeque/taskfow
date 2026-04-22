@@ -61,6 +61,8 @@ import {
 export default function Issues() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { token, user } = useAuth();
+  const { showToast } = useNotifications();
   const [searchParams, setSearchParams] = useSearchParams();
   const { filters, quickFilter, viewMode, page, jql } = parseFiltersFromSearchParams(searchParams);
 
@@ -82,7 +84,6 @@ export default function Issues() {
     setSearchParams(nextParams, { replace: true });
   };
 
-  const { token, user } = useAuth();
   const { subscribeProject } = useNotifications();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [project, setProject] = useState<Project | null>(null);
@@ -675,6 +676,12 @@ const statusList = project?.statuses?.length ? project.statuses.map((s) => s.nam
           setPendingFiles([]);
         }
         setModal(null);
+        showToast({
+          title: `Issue Created : ${getIssueKey(res.data)}`,
+          body: 'click to view',
+          url: `/projects/${projectId}/issues/${encodeURIComponent(getIssueKey(res.data))}`,
+          autoDismissMs: 5000,
+        });
         updateUrl({ page: 1 });
         issuesApi.list(buildListParams({ page: 1 })).then((r) => {
           if (r.success && r.data) {

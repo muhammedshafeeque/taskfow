@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationsContext';
 import {
   issuesApi,
   commentsApi,
@@ -37,6 +38,7 @@ export default function IssueDetail() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { token, user } = useAuth();
+  const { showToast } = useNotifications();
   const secondaryTabsRef = useRef<TaskSecondaryTabsHandle>(null);
   const [issue, setIssue] = useState<Issue | null>(null);
   const [project, setProject] = useState<Project | null>(null);
@@ -152,6 +154,12 @@ export default function IssueDetail() {
           );
         }
         setModalOpen(null);
+        showToast({
+          title: `Issue Created : ${getIssueKey(res.data)}`,
+          body: 'click to view',
+          url: `/projects/${typeof res.data.project === 'object' ? res.data.project._id : res.data.project}/issues/${encodeURIComponent(getIssueKey(res.data))}`,
+          autoDismissMs: 5000,
+        });
         if (form.parent === issue?._id) {
           issuesApi.getSubtasks(issue._id, token).then((r) => {
             if (r.success && r.data) setSubtasks(Array.isArray(r.data) ? r.data : []);

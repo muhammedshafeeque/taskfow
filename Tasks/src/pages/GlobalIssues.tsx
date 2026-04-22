@@ -8,6 +8,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationsContext';
 import {
   issuesApi,
   usersApi,
@@ -82,6 +83,7 @@ export default function GlobalIssues() {
   };
 
   const { token, user } = useAuth();
+  const { showToast } = useNotifications();
   const [projects, setProjects] = useState<Project[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [total, setTotal] = useState(0);
@@ -571,6 +573,12 @@ export default function GlobalIssues() {
           setPendingFiles([]);
         }
         setModal(null);
+        showToast({
+          title: `Issue Created : ${getIssueKey(res.data)}`,
+          body: 'click to view',
+          url: `/projects/${typeof res.data.project === 'object' ? res.data.project._id : res.data.project}/issues/${encodeURIComponent(getIssueKey(res.data))}`,
+          autoDismissMs: 5000,
+        });
         updateUrl({ page: 1 });
         issuesApi.list(buildListParams({ page: 1 })).then((r) => {
           if (r.success && r.data) {

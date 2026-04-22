@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationsContext';
 import { toAppPath } from '../lib/navigationUrl';
 import NotificationToast from './NotificationToast';
+import SuccessToast from './SuccessToast';
 import ConfirmModal from './ConfirmModal';
 import { projectsApi, issuesApi, type Project, type Issue, getIssueKey } from '../lib/api';
 import { APP_VERSION } from '../appVersion';
@@ -575,6 +576,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           })()}
         </div>
       </div>
+      
+      {/* Bottom left local app toasts */}
+      <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2 pointer-events-none">
+        <div className="pointer-events-auto">
+          {useNotifications().appToast && (
+            <SuccessToast
+              title={useNotifications().appToast!.title}
+              body={useNotifications().appToast!.body}
+              url={useNotifications().appToast!.url}
+              autoDismissMs={useNotifications().appToast!.autoDismissMs ?? 5000}
+              onDismiss={useNotifications().dismissAppToast}
+            />
+          )}
+        </div>
+      </div>
+
       <ConfirmModal
         open={logoutConfirmOpen}
         title="Sign out?"

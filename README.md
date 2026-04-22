@@ -14,74 +14,67 @@
 
 ## ✨ Overview
 
-**TaskFlow** is a full-featured project management application built for development teams. Create issues, manage sprints, visualize work on boards, track time, and collaborate—all in one place. Supports dark mode, real-time notifications, and role-based permissions.
+**TaskFlow** is a full-featured project management application explicitly focused on the needs of **small teams**. It is designed to be lightweight, incredibly fast to set up, and can be **installed and ready to use in under 10 minutes**. 
+
+Create issues, manage sprints, visualize work on boards, track time, and collaborate—all in one place. TaskFlow provides large-scale enterprise features without the steep learning curve, supporting dark mode, real-time notifications, and robust role-based permissions to keep your team moving forward.
 
 ---
 
-## 🚀 Features
+## 🚀 Features & Functions
 
-### Core
-
+### Core Issue Tracking & Planning
 | Feature | Description |
 |---------|-------------|
-| **Issues** | Create and manage tasks, bugs, stories, and epics with custom fields, labels, and checklists |
-| **Kanban Boards** | Drag-and-drop boards for sprint and backlog management |
-| **Sprints** | Plan, start, and complete sprints with velocity tracking |
-| **Backlog** | Prioritize and groom your backlog with drag-and-drop |
-| **Gantt** | Visual timeline with Gantt charts |
-| **Roadmap** | Milestone-based roadmaps and planning |
+| **Issues & Subtasks** | Tasks, bugs, stories, and epics with custom fields, labels, and checklists. |
+| **Kanban Boards** | Drag-and-drop interactive boards for sprint and backlog management. |
+| **Sprints & Backlog** | Prioritize the backlog, plan sprints, and track velocity. |
+| **Gantt & Roadmaps** | Visual timeline with Gantt charts and milestone-based roadmaps. |
+| **Advanced Filtering** | Save custom filters, use quick filters, and switch between List, Table, and Kanban views. |
+| **Estimates Tracking** | Track remaining estimates, burn rates, and calculate expected delivery dates. |
 
-### Collaboration
-
+### Collaboration & Tracking
 | Feature | Description |
 |---------|-------------|
-| **Comments** | Discuss issues with rich text (Markdown, tables, images) |
-| **Watchers** | Watch issues and get notified of updates |
-| **Issue Links** | Link related issues (blocks, duplicates, etc.) |
-| **Attachments** | Upload files to issues |
-| **Work Logs** | Log time spent on issues with Jira-style time tracking |
-
-### Project Management
-
-| Feature | Description |
-|---------|-------------|
-| **Versions** | Version management with release rules and environments |
-| **Milestones** | Track project milestones and due dates |
-| **Custom Fields** | Define project-specific custom fields |
-| **Project Templates** | Start from templates for common project types |
-| **Permissions** | Global and project-scoped role-based permissions |
+| **Comments & Mentions** | Discuss issues using TipTap rich text (Markdown, tables, images) and user mentions. |
+| **Watchers** | Watch issues and receive notifications. |
+| **Issue Links/Traceability** | Link related issues (blocks, duplicates) and trace requirements. |
+| **Attachments** | Upload and manage files directly on issues. |
+| **Work Logs & Timesheet** | Log time spent on issues and review timesheets across the team. |
 
 ### QA & Test Management
-
 | Feature | Description |
 |---------|-------------|
-| **Test Cases** | Create and manage test cases linked to issues |
-| **Test Plans** | Organize test cases into plans |
-| **Test Cycles** | Run test cycles and record pass/fail/skip results |
-| **Traceability** | Trace requirements to test cases |
-| **Defect Metrics** | Bug density, status, and priority analytics |
+| **Test Cases & Plans** | Create and manage test cases; organize them into structured test plans. |
+| **Test Cycles** | Execute test cycles and record pass/fail/skip/blocked results. |
+| **Requirements Traceability** | Trace requirements directly to test cases and execution status. |
+| **Defect Metrics** | Dashboard for bug density, status, and priority analytics. |
 
-### Analytics & Reporting
-
+### Analytics & Advanced Reporting
 | Feature | Description |
 |---------|-------------|
-| **Dashboard** | Personal dashboard with issue stats and recent activity |
-| **Workload** | View issues and story points per assignee |
-| **Portfolio** | Overview of all projects and progress |
-| **Executive Dashboard** | High-level stats for admins |
-| **Usage Analytics** | Daily active users, actions by type, top users |
-| **Custom Reports** | Create and save reports (issues by status, workload, defects) |
-| **Cost/Usage Reports** | Work log totals by project and user |
-| **Defect Metrics** | Bug analytics by status and priority |
+| **Interactive Dashboards** | Personal, Project, and Executive dashboards with issue stats and activity. |
+| **Custom Reports** | Build custom visual reports for issues by status, type, priority, and assignee. |
+| **Performance Reports** | Team performance reporting with Excel export capabilities. |
+| **Cost & Usage Reports** | Calculate work log totals mapped to users and projects. |
+| **Sprint Reports** | Detailed reviews of sprint progress and completion metrics. |
+| **Workload View** | Breakdown of open issues, story points, and counts per assignee. |
 
-### Enterprise
-
+### Project Settings & Management
 | Feature | Description |
 |---------|-------------|
-| **Audit Logs** | Track who did what and when |
-| **Licensing** | Optional user limit enforcement |
-| **Web Push** | Browser push notifications for assignments and updates |
-| **Inbox** | In-app notifications for invitations and mentions |
+| **Versions & Releases** | Version management with environment mappings and automated release notes. |
+| **Milestones** | Track critical project milestones and due dates. |
+| **Custom Fields** | Extend issues with custom text, number, date, select, and user fields. |
+| **Project Templates** | Standardize configurations across projects. |
+| **Roles & Permissions** | Fine-grained global and project-scoped designations. |
+
+### Enterprise & Security
+| Feature | Description |
+|---------|-------------|
+| **Audit Logs** | Comprehensive tracking of resource modifications (who did what and when). |
+| **Authentication** | JWT-based auth, Microsoft SSO integration, and password recovery. |
+| **Customer Portal** | Dedicated portal for external customers to submit and track issues. |
+| **Notifications** | Real-time Socket.io updates, in-app Inbox, and Web Push notifications. |
 
 ---
 
@@ -92,11 +85,11 @@
 | **Backend** | Node.js, Express, TypeScript, Mongoose (MongoDB) |
 | **Frontend** | React 19, Vite 7, TypeScript, React Router 7 |
 | **Styling** | Tailwind CSS 4 |
-| **Auth** | JWT (access + refresh), bcryptjs |
-| **Real-time** | Socket.IO |
-| **Rich Text** | TipTap (tables, images, Markdown) |
-| **Charts** | Recharts |
-| **Other** | @dnd-kit (drag-and-drop), frappe-gantt, jspdf, exceljs, web-push |
+| **Auth** | JWT (access + refresh), bcryptjs, Microsoft SSO |
+| **Real-time** | Socket.IO, Web Push |
+| **Rich Text** | TipTap |
+| **Charts & BI** | Recharts, exceljs, jspdf |
+| **Other Utilities** | @dnd-kit (drag-and-drop), frappe-gantt |
 
 ---
 
@@ -113,8 +106,8 @@
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
-cd Tasks
+git clone https://github.com/muhammedshafeeque/taskflow.git
+cd taskflow
 ```
 
 ### 2. Install dependencies
@@ -136,15 +129,27 @@ cd server
 cp .env.example .env
 ```
 
-Edit `.env` with your settings:
+Edit `.env` with your settings (see `server/.env.example` for all options):
 
 ```env
 PORT=5000
 NODE_ENV=development
 MONGODB_URI=mongodb://localhost:27017/pm-tool
+
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
 JWT_EXPIRES_IN=7d
+
 APP_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:5173
+
+# Optional: Set up SMTP or Azure Graph for emails
+# IS_SMTP_ENABLED=true
+# SMTP_HOST=smtp.example.com
+# SMTP_PORT=587
+
+# Optional: Web Push Notifications
+# VAPID_PUBLIC_KEY=...
+# VAPID_PRIVATE_KEY=...
 ```
 
 ### 4. Create super admin (first run)
@@ -180,23 +185,13 @@ Navigate to **http://localhost:5173** and log in with your super admin credentia
 
 ## 🏗 Project Structure
 
-```
+```text
 Tasks/
 ├── server/                 # Backend API
 │   ├── src/
 │   │   ├── config/         # Environment config
 │   │   ├── middleware/     # Auth, permissions, validation
-│   │   ├── modules/        # Feature modules
-│   │   │   ├── auth/
-│   │   │   ├── issues/
-│   │   │   ├── projects/
-│   │   │   ├── boards/
-│   │   │   ├── sprints/
-│   │   │   ├── dashboard/
-│   │   │   ├── analytics/
-│   │   │   ├── reports/
-│   │   │   ├── testPlans/
-│   │   │   └── ...
+│   │   ├── modules/        # Feature modules (auth, projects, issues, sprints, qa, reports, etc.)
 │   │   ├── routes/         # API route aggregation
 │   │   └── utils/
 │   └── package.json
@@ -206,7 +201,7 @@ Tasks/
     │   ├── components/     # Reusable UI components
     │   ├── contexts/       # Auth, Notifications
     │   ├── lib/            # API client, types
-    │   └── pages/          # Route-level pages
+    │   └── pages/          # Route-level pages (Dashboards, Kanban, QA, Reports, Admin)
     └── package.json
 ```
 
@@ -231,6 +226,8 @@ Serve the `Tasks/dist` folder with a static server (e.g. Nginx, Vercel, Netlify)
 
 ## 🔐 Environment Variables
 
+You can find all of the environment variables inside `server/.env.example`. Below is a breakdown:
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | `5000` |
@@ -238,14 +235,33 @@ Serve the `Tasks/dist` folder with a static server (e.g. Nginx, Vercel, Netlify)
 | `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/pm-tool` |
 | `JWT_SECRET` | JWT signing secret | **Required in production** |
 | `JWT_EXPIRES_IN` | Access token expiry | `7d` |
-| `APP_URL` | Frontend URL (for emails, links) | `http://localhost:5173` |
-| `MAX_USERS` | Optional user limit (enterprise) | — |
-| `SMTP_HOST` | Email host (forgot password, etc.) | — |
-| `SMTP_PORT` | Email port | — |
-| `SMTP_USER` | Email username | — |
-| `SMTP_PASS` | Email password | — |
+| `APP_URL` | Default base URL for the app (emails, fallback) | `http://localhost:5173` |
+| `FRONTEND_URL` | SPA origin, required for accurate email links | `http://localhost:5173` |
+| **Email: SMTP Options** |
+| `IS_SMTP_ENABLED` | Set to true to use SMTP for emails | `false` |
+| `SMTP_HOST` / `SMTP_PORT` | SMTP server host and port | — / `587` |
+| `SMTP_USER` / `SMTP_PASS` | SMTP credentials | — |
+| `MAIL_FROM` | Sender address for emails | `noreply@taskflow.local` |
+| **Email: Azure Graph Options** |
+| `IS_AZURE_GRAPH_ENABLED` | Set to true to use Microsoft Graph API for emails | `false` |
+| `AZURE_GRAPH_TENANT_ID` | Your Graph tenant ID (Not 'common') | — |
+| `AZURE_GRAPH_CLIENT_ID` | Your Graph Client ID | — |
+| `AZURE_GRAPH_CLIENT_SECRET` | Your Graph Client Secret | — |
+| `AZURE_GRAPH_FROM_EMAIL` | Mailbox used for Graph sends | `noreply@yourdomain.com` |
+| **Microsoft SSO Options** |
+| `AZURE_AD_CLIENT_ID` | Client ID for MS SSO | — |
+| `AZURE_AD_CLIENT_SECRET`| Client Secret for MS SSO| — |
+| `AZURE_AD_TENANT_ID` | Tenant ID for MS SSO | `common` |
+| `AZURE_REDIRECT_URI` | Re-direct URI | `http://localhost:5173/login` |
+| `MS_USER_INFO_ENDPOINT` | OIDC Endpoint | `https://graph.microsoft.com/oidc/userinfo` |
+| **Notification Options** |
 | `VAPID_PUBLIC_KEY` | Web push public key | — |
 | `VAPID_PRIVATE_KEY` | Web push private key | — |
+| **Enterprise Options** |
+| `MAX_USERS` | Optional user limit (enterprise) | — |
+| **Automation / CLI Scripts** |
+| `SUPER_ADMIN_*` | Variables (`EMAIL`, `PASSWORD`, `NAME`) for auto CLI creation | — |
+| `AZURE_DEVOPS_*` | Tooling for importing tasks from ADO work items | — |
 
 ---
 

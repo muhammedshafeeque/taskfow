@@ -18,6 +18,13 @@ export interface PushNotificationPayload {
   data?: Record<string, unknown>;
 }
 
+export interface AppToastPayload {
+  title: string;
+  body?: string;
+  url?: string;
+  autoDismissMs?: number;
+}
+
 interface NotificationsContextValue {
   /** Increments when a new inbox message is received (use as dependency to refetch inbox). */
   inboxVersion: number;
@@ -36,6 +43,10 @@ interface NotificationsContextValue {
   dismissPushToast: () => void;
   /** Subscribe to project:refresh for a project. Returns unsubscribe. */
   subscribeProject: (projectId: string, onRefresh: () => void) => () => void;
+  /** Global app-level toast for local success/error messages */
+  appToast: AppToastPayload | null;
+  showToast: (toast: AppToastPayload) => void;
+  dismissAppToast: () => void;
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
@@ -52,8 +63,17 @@ export function NotificationsProvider({
   const [latestPushNotification, setLatestPushNotification] = useState<PushNotificationPayload | null>(null);
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [appToast, setAppToast] = useState<AppToastPayload | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const projectCallbacksRef = useRef<Map<string, () => void>>(new Map());
+
+  const showToast = useCallback((toast: AppToastPayload) => {
+    setAppToast(toast);
+  }, []);
+
+  const dismissAppToast = useCallback(() => {
+    setAppToast(null);
+  }, []);
 
   const dismissInboxToast = useCallback(() => {
     setLatestInboxMessage(null);
@@ -157,8 +177,11 @@ export function NotificationsProvider({
       dismissInboxToast,
       dismissPushToast,
       subscribeProject,
+      appToast,
+      showToast,
+      dismissAppToast,
     }),
-    [inboxVersion, latestInboxMessage, latestPushNotification, notifications, unreadCount, markRead, markAllRead, dismissInboxToast, dismissPushToast, subscribeProject]
+    [inboxVersion, latestInboxMessage, latestPushNotification, notifications, unreadCount, markRead, markAllRead, dismissInboxToast, dismissPushToast, subscribeProject, appToast, showToast, dismissAppToast]
   );
 
   return (
@@ -182,6 +205,9 @@ export function useNotifications() {
       dismissInboxToast: () => {},
       dismissPushToast: () => {},
       subscribeProject: () => () => {},
+      appToast: null,
+      showToast: () => {},
+      dismissAppToast: () => {},
     }
   );
 }
