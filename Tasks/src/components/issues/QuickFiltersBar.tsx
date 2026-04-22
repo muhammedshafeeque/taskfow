@@ -32,6 +32,7 @@ interface QuickFiltersBarProps {
   applySavedFilter: (sf: SavedFilter) => void;
   removeSavedFilter: (id: string) => void;
   /** When there are no saved filters, clicking "Saved" can open the filter modal or save dialog. */
+  onSavedEmptyClick?: () => void;
   totalCounts: { my: number; open: number; all: number } | null;
 }
 
