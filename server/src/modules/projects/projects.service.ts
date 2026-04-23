@@ -437,13 +437,12 @@ export async function releaseVersionToEnvironment(
     : await ProjectMember.find({ project: projectId }).distinct('user').then((ids) => ids.map((id) => String(id)));
   userIdsToNotify = [...new Set(userIdsToNotify)];
   const releaseTitle = `Release: ${version.name} → ${env.name}`;
-  const releaseBody = `Version ${version.name} has been released to ${env.name}. ${issues.length} issue(s) updated.`;
   for (const uid of userIdsToNotify) {
     inboxService.createMessage({
       toUser: uid,
       type: 'release_notes',
       title: releaseTitle,
-      body: releaseBody,
+      body: releaseNotes,
       meta: { projectId, versionId, versionName: version.name, environmentId, environmentName: env.name, issueCount: issues.length },
     }).catch((err) => console.error('Inbox release notification failed:', err));
   }

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FiArrowLeft, FiInbox, FiRefreshCw, FiSearch } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationsContext';
 import { inboxApi, invitationsApi, type InboxMessage } from '../lib/api';
 import { formatDateDDMMYYYY, formatDateTimeDDMMYYYY, parseToLocalDate } from '../lib/dateFormat';
+import { ReleaseNotesMarkdownBody } from '../components/ReleaseNotesMarkdown';
 
 const VISIBLE_INBOX_TYPES = new Set([
   'project_invitation',
@@ -303,7 +304,11 @@ export default function Inbox() {
                 </p>
               </div>
             ) : (
-              <ul className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden" role="listbox" aria-label="Messages">
+              <ul
+                className="inbox-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+                role="listbox"
+                aria-label="Messages"
+              >
                 {displayMessages.map((m) => {
                   const unread = !m.readAt;
                   const selected = selectedMessage?._id === m._id;
@@ -400,7 +405,7 @@ export default function Inbox() {
                     <span className="text-xs text-[color:var(--text-muted)]">Inbox</span>
                   </div>
                 )}
-                <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="inbox-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
                   <div className="p-4 sm:p-5 max-w-3xl">
                     {actionError && (
                       <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
@@ -434,18 +439,14 @@ export default function Inbox() {
                       </div>
                     </div>
 
-                    <div className="text-[color:var(--text-primary)] text-sm whitespace-pre-wrap leading-[1.65]">
-                      {selectedMessage.body || '—'}
-                    </div>
-
-                    {selectedMessage.type === 'release_notes' && (selectedMessage.meta as { projectId?: string })?.projectId && (
-                      <div className="mt-6 pt-4 border-t border-[color:var(--border-subtle)]">
-                        <Link
-                          to={`/projects/${(selectedMessage.meta as { projectId: string }).projectId}/versions`}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] text-xs text-[color:var(--text-primary)] font-medium hover:bg-[color:var(--bg-elevated)] transition"
-                        >
-                          View release notes
-                        </Link>
+                    {selectedMessage.type === 'release_notes' && (selectedMessage.body?.trim() ?? '') ? (
+                      <ReleaseNotesMarkdownBody
+                        notes={selectedMessage.body!}
+                        projectId={(selectedMessage.meta as { projectId?: string })?.projectId}
+                      />
+                    ) : (
+                      <div className="text-[color:var(--text-primary)] text-sm whitespace-pre-wrap leading-[1.65]">
+                        {selectedMessage.body || '—'}
                       </div>
                     )}
 

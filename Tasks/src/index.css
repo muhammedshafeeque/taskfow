@@ -186,6 +186,35 @@
     scrollbar-width: thin;
     scrollbar-color: var(--border-subtle) transparent;
   }
+
+  /* Inbox: polished scrollbars (list + reading pane) */
+  .inbox-scroll {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-muted) var(--bg-elevated);
+  }
+  .inbox-scroll::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  .inbox-scroll::-webkit-scrollbar-track {
+    background: var(--bg-elevated);
+    border-radius: 999px;
+    margin: 5px 0;
+  }
+  .inbox-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--accent) 0%, var(--accent-muted) 100%);
+    border-radius: 999px;
+    border: 2px solid var(--bg-elevated);
+    min-height: 32px;
+  }
+  .inbox-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+    border-color: var(--bg-surface);
+  }
+  .inbox-scroll::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 /* Custom animations */
