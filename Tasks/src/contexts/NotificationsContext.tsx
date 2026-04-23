@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { WS_URL, notificationsApi, type InAppNotification } from '../lib/api';
+import { WS_URL, inboxApi, notificationsApi, type InAppNotification } from '../lib/api';
 
 export interface PushNotificationPayload {
   title: string;
@@ -34,9 +34,12 @@ interface NotificationsContextValue {
   latestPushNotification: PushNotificationPayload | null;
   /** In-app notifications (persisted). */
   notifications: InAppNotification[];
+  inboxUnreadCount: number;
   unreadCount: number;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
+  markInboxItemRead: (id: string) => Promise<void>;
+  refreshInboxUnreadCount: () => Promise<void>;
   /** Dismiss the inbox toast. */
   dismissInboxToast: () => void;
   /** Dismiss the push toast. */
@@ -62,6 +65,7 @@ export function NotificationsProvider({
   const [latestInboxMessage, setLatestInboxMessage] = useState<Record<string, unknown> | null>(null);
   const [latestPushNotification, setLatestPushNotification] = useState<PushNotificationPayload | null>(null);
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
+  const [inboxUnreadCount, setInboxUnreadCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const [appToast, setAppToast] = useState<AppToastPayload | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -82,6 +86,12 @@ export function NotificationsProvider({
   const dismissPushToast = useCallback(() => {
     setLatestPushNotification(null);
   }, []);
+
+  const refreshInboxUnreadCount = useCallback(async () => {
+    if (!token) return;
+    const res = await inboxApi.unreadCount(token);
+    if (res.success && res.data) setInboxUnreadCount(res.data.unread ?? 0);
+  }, [token]);
 
   const subscribeProject = useCallback((projectId: string, onRefresh: () => void) => {
     projectCallbacksRef.current.set(projectId, onRefresh);
@@ -121,9 +131,18 @@ export function NotificationsProvider({
     }
   }, [token]);
 
+  const markInboxItemRead = useCallback(async (id: string) => {
+    if (!token) return;
+    const res = await inboxApi.markRead(id, token);
+    if (res.success) setInboxUnreadCount((c) => Math.max(0, c - 1));
+  }, [token]);
+
   useEffect(() => {
     if (!token) return;
     // initial load
+    inboxApi.unreadCount(token).then((res) => {
+      if (res.success && res.data) setInboxUnreadCount(res.data.unread ?? 0);
+    });
     notificationsApi.unreadCount(token).then((res) => {
       if (res.success && res.data) setUnreadCount(res.data.unread ?? 0);
     });
@@ -138,6 +157,7 @@ export function NotificationsProvider({
     socket.on('inbox:new', (payload: Record<string, unknown>) => {
       setLatestInboxMessage(payload);
       setInboxVersion((v) => v + 1);
+      setInboxUnreadCount((c) => c + 1);
     });
     socket.on('notification:push', (payload: PushNotificationPayload) => {
       setLatestPushNotification(payload);
@@ -171,9 +191,12 @@ export function NotificationsProvider({
       latestInboxMessage,
       latestPushNotification,
       notifications,
+      inboxUnreadCount,
       unreadCount,
       markRead,
       markAllRead,
+      markInboxItemRead,
+      refreshInboxUnreadCount,
       dismissInboxToast,
       dismissPushToast,
       subscribeProject,
@@ -181,7 +204,7 @@ export function NotificationsProvider({
       showToast,
       dismissAppToast,
     }),
-    [inboxVersion, latestInboxMessage, latestPushNotification, notifications, unreadCount, markRead, markAllRead, dismissInboxToast, dismissPushToast, subscribeProject, appToast, showToast, dismissAppToast]
+    [inboxVersion, latestInboxMessage, latestPushNotification, notifications, inboxUnreadCount, unreadCount, markRead, markAllRead, markInboxItemRead, refreshInboxUnreadCount, dismissInboxToast, dismissPushToast, subscribeProject, appToast, showToast, dismissAppToast]
   );
 
   return (
@@ -199,9 +222,12 @@ export function useNotifications() {
       latestInboxMessage: null,
       latestPushNotification: null,
       notifications: [],
+      inboxUnreadCount: 0,
       unreadCount: 0,
       markRead: async () => {},
       markAllRead: async () => {},
+      markInboxItemRead: async () => {},
+      refreshInboxUnreadCount: async () => {},
       dismissInboxToast: () => {},
       dismissPushToast: () => {},
       subscribeProject: () => () => {},

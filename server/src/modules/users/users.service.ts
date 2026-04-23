@@ -151,6 +151,7 @@ export async function updatePermissionOverrides(
 ): Promise<unknown | null> {
   const existingUser = await User.findById(id).populate('roleId', 'permissions').lean();
   if (!existingUser) return null;
+  const existingGranted = existingUser.permissionOverrides?.granted ?? [];
 
   const role = existingUser.roleId as any;
   const rolePerms = Array.isArray(role?.permissions) ? role.permissions : [];
@@ -180,6 +181,19 @@ export async function updatePermissionOverrides(
 
   if (user) {
     await ensureGlobalProjectMembership(user);
+
+    const newlyGranted = overrides.granted.filter((perm) => !existingGranted.includes(perm));
+    if (newlyGranted.length > 0) {
+      await inboxService
+        .createMessage({
+          toUser: String(user._id),
+          type: 'permission_granted',
+          title: 'Permissions granted',
+          body: `You have been granted ${newlyGranted.length} permission${newlyGranted.length > 1 ? 's' : ''}: ${newlyGranted.join(', ')}`,
+          meta: { permissions: newlyGranted },
+        })
+        .catch((err) => console.error('Failed to create permission granted inbox message:', err));
+    }
   }
 
   return user ?? null;

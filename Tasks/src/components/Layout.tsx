@@ -151,9 +151,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     dismissInboxToast,
     dismissPushToast,
     notifications,
+    inboxUnreadCount,
     unreadCount,
     markRead,
     markAllRead,
+    appToast,
+    dismissAppToast,
   } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
@@ -335,11 +338,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     isProjectsLink ? isActive : isActive || (projectId && location.pathname.startsWith(item.to));
                   return `sidebar-nav-item animation-delay-${(i + 1) * 100} animate-fade-in ${
                     sidebarCollapsed ? 'justify-center' : ''
-                  } ${active ? 'active' : ''}`;
+                  } ${active ? 'active' : ''} relative`;
                 }}
               >
                 <span className="w-5 h-5 flex shrink-0 items-center justify-center">{item.icon}</span>
                 {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                {item.to === '/inbox' && inboxUnreadCount > 0 && (
+                  <span
+                    className={`ml-auto min-w-5 h-5 px-1.5 rounded-full text-[10px] font-semibold flex items-center justify-center bg-[color:var(--color-blocked)] text-white ${
+                      sidebarCollapsed ? 'absolute -top-0.5 -right-0.5' : ''
+                    }`}
+                    aria-label={`${inboxUnreadCount} unread inbox items`}
+                  >
+                    {inboxUnreadCount > 99 ? '99+' : inboxUnreadCount}
+                  </span>
+                )}
               </NavLink>
             );
           })}
@@ -431,7 +444,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--border-subtle)] text-[color:var(--text-muted)] hover:bg-[color:var(--bg-surface)] hover:text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 focus:ring-offset-0 transition"
             >
               <BellIcon className="w-3.5 h-3.5" />
-              {(unreadCount > 0 || latestInboxMessage || latestPushNotification) && (
+              {(unreadCount > 0 || latestPushNotification) && (
                 <span
                   className="absolute -top-0.5 -right-0.5 min-w-2.5 h-2.5 px-1 rounded-full bg-[color:var(--color-blocked)] ring-2 ring-[color:var(--bg-surface)] text-[10px] text-white flex items-center justify-center"
                   aria-hidden
@@ -580,13 +593,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Bottom left local app toasts */}
       <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2 pointer-events-none">
         <div className="pointer-events-auto">
-          {useNotifications().appToast && (
+          {appToast && (
             <SuccessToast
-              title={useNotifications().appToast!.title}
-              body={useNotifications().appToast!.body}
-              url={useNotifications().appToast!.url}
-              autoDismissMs={useNotifications().appToast!.autoDismissMs ?? 5000}
-              onDismiss={useNotifications().dismissAppToast}
+              title={appToast.title}
+              body={appToast.body}
+              url={appToast.url}
+              autoDismissMs={appToast.autoDismissMs ?? 5000}
+              onDismiss={dismissAppToast}
             />
           )}
         </div>

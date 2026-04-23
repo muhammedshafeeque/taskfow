@@ -888,6 +888,7 @@ export interface InboxMessage {
 export const inboxApi = {
   list: (page = 1, limit = 50, token: string) =>
     api.get<Paginated<InboxMessage>>(`/inbox?page=${page}&limit=${limit}`, token),
+  unreadCount: (token: string) => api.get<{ unread: number }>(`/inbox/unread-count`, token),
   markRead: (id: string, token: string) => api.patch<InboxMessage>(`/inbox/${id}/read`, {}, token),
 };
 

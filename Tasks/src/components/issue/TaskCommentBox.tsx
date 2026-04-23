@@ -72,8 +72,6 @@ export default function TaskCommentBox({
   const { token } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [draftSnapshot, setDraftSnapshot] = useState('');
   const mentionUsersRef = useRef<Array<{ _id: string; name: string; email: string }>>([]);
   useEffect(() => {
     mentionUsersRef.current = mentionUsers;
@@ -335,8 +333,6 @@ export default function TaskCommentBox({
     if (isEditorHtmlEmpty(html) || submitting) return;
     onSubmit(html);
     editor?.commands.clearContent(true);
-    setExpanded(false);
-    setDraftSnapshot('');
   };
 
   const mediaBtn =
@@ -344,33 +340,9 @@ export default function TaskCommentBox({
 
   const handleCancel = () => {
     if (!editor) return;
-    editor.commands.setContent(draftSnapshot || '', false);
-    setExpanded(false);
-  };
-
-  const handleExpand = () => {
-    if (!editor) return;
+    editor.commands.clearContent(true);
     setUploadError(null);
-    setDraftSnapshot(editor.getHTML());
-    setExpanded(true);
-    requestAnimationFrame(() => {
-      editor.chain().focus('end').run();
-    });
   };
-
-  if (!expanded) {
-    return (
-      <div className="rounded-xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] p-3">
-        <button
-          type="button"
-          onClick={handleExpand}
-          className="w-full text-left px-3 py-2.5 rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] text-sm text-[color:var(--text-muted)] hover:border-[color:var(--accent)]/50 transition-colors"
-        >
-          {placeholder}
-        </button>
-      </div>
-    );
-  }
 
   return (
     <form onSubmit={handleSubmit} className="rounded-xl bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] overflow-hidden">

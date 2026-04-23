@@ -3,7 +3,7 @@ import { authMiddleware } from '../../middleware/auth.middleware';
 import { requirePermission } from '../../middleware/requirePermission';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { TASK_FLOW_PERMISSIONS } from '../../shared/constants/permissions';
-import { getInboxHandler, markAsReadHandler } from './inbox.controller';
+import { getInboxHandler, markAsReadHandler, getUnreadCountHandler } from './inbox.controller';
 import {
   listNotifications,
   markAllNotificationsRead,
@@ -17,6 +17,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get('/', requirePermission(TASK_FLOW_PERMISSIONS.INBOX.INBOX.LIST), getInboxHandler);
+router.get('/unread-count', requirePermission(TASK_FLOW_PERMISSIONS.INBOX.INBOX.LIST), getUnreadCountHandler);
 router.patch(
   '/:id/read',
   requirePermission(TASK_FLOW_PERMISSIONS.INBOX.INBOX.READ),

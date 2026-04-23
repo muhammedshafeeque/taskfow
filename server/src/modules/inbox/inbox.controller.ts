@@ -20,5 +20,13 @@ export async function markAsRead(req: Request, res: Response): Promise<void> {
   res.status(200).json({ success: true, data: msg });
 }
 
+export async function getUnreadCount(req: Request, res: Response): Promise<void> {
+  const userId = req.user?.id;
+  if (!userId) throw new ApiError(401, 'Unauthorized');
+  const count = await inboxService.unreadCount(userId);
+  res.status(200).json({ success: true, data: { unread: count } });
+}
+
 export const getInboxHandler = asyncHandler(getInbox);
 export const markAsReadHandler = asyncHandler(markAsRead);
+export const getUnreadCountHandler = asyncHandler(getUnreadCount);

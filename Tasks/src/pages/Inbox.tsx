@@ -1,15 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationsContext';
 import { inboxApi, invitationsApi, type InboxMessage } from '../lib/api';
 import { formatDateTimeDDMMYYYY } from '../lib/dateFormat';
 
+const VISIBLE_INBOX_TYPES = new Set([
+  'project_invitation',
+  'project_invitation_request',
+  'project_invite',
+  'release_notes',
+  'announcement',
+  'permission_granted',
+]);
+
+function getInboxTypeLabel(type: string): string {
+  if (type.includes('invitation')) return 'Invitation';
+  if (type === 'release_notes') return 'Release notes';
+  if (type === 'announcement') return 'Announcement';
+  if (type === 'permission_granted') return 'Permission update';
+  return 'Inbox';
+}
+
 export default function Inbox() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { inboxVersion } = useNotifications();
+  const { inboxVersion, markInboxItemRead, refreshInboxUnreadCount } = useNotifications();
   const [messages, setMessages] = useState<InboxMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
@@ -22,7 +39,16 @@ export default function Inbox() {
     inboxApi
       .list(1, 50, token)
       .then((res) => {
-        if (res.success && res.data) setMessages(((res.data as { data: InboxMessage[] }).data) ?? []);
+        if (res.success && res.data) {
+          const next = ((res.data as { data: InboxMessage[] }).data ?? []).filter((item) =>
+            VISIBLE_INBOX_TYPES.has(item.type) || item.type.includes('invitation')
+          );
+          setMessages(next);
+          setSelectedMessage((prev) => {
+            if (!prev) return next[0] ?? null;
+            return next.find((m) => m._id === prev._id) ?? next[0] ?? null;
+          });
+        }
       })
       .finally(() => setLoading(false));
   }
@@ -33,12 +59,10 @@ export default function Inbox() {
   }, [token, inboxVersion, location.pathname]);
 
   async function markRead(id: string) {
-    if (!token) return;
-    const res = await inboxApi.markRead(id, token);
-    if (res.success && res.data)
-      setMessages((prev) =>
-        prev.map((m) => (m._id === id ? { ...m, readAt: (res.data as InboxMessage).readAt ?? new Date().toISOString() } : m))
-      );
+    await markInboxItemRead(id);
+    const now = new Date().toISOString();
+    setMessages((prev) => prev.map((m) => (m._id === id ? { ...m, readAt: m.readAt ?? now } : m)));
+    setSelectedMessage((prev) => (prev?._id === id ? { ...prev, readAt: prev.readAt ?? now } : prev));
   }
 
   function openMessage(m: InboxMessage) {
@@ -68,6 +92,7 @@ export default function Inbox() {
           : prev
       );
       setSelectedMessage(null);
+      refreshInboxUnreadCount();
       navigate(`/projects/${projectId}/dashboard`);
     } else {
       setActionError((res as { message?: string }).message ?? 'Could not accept invitation.');
@@ -85,6 +110,7 @@ export default function Inbox() {
     if (res.success) {
       setMessages((prev) => prev.filter((m) => !(m.type === 'project_invitation' && m.meta?.invitationId === invitationId)));
       if (selectedMessage?.meta?.invitationId === invitationId) setSelectedMessage(null);
+      refreshInboxUnreadCount();
     } else {
       setActionError((res as { message?: string }).message ?? 'Could not decline invitation.');
       loadInbox();
@@ -96,10 +122,27 @@ export default function Inbox() {
     m.type === 'project_invitation' && m.meta?.invitationId && m.meta?.status !== 'accepted';
 
   const mustChange = user?.mustChangePassword ?? false;
+  const unreadMessages = useMemo(() => messages.filter((m) => !m.readAt), [messages]);
+  const readMessages = useMemo(() => messages.filter((m) => !!m.readAt), [messages]);
 
   return (
     <div className="p-4 sm:p-6 w-full">
-      <h1 className="text-base font-semibold text-[color:var(--text-primary)] mb-4">Inbox</h1>
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-[color:var(--text-primary)]">Inbox</h1>
+          <p className="text-xs text-[color:var(--text-muted)] mt-1">
+            Project invitations, release notes, and important updates.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-[11px]">
+          <span className="px-2 py-1 rounded-full bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] text-[color:var(--text-primary)]">
+            Total {messages.length}
+          </span>
+          <span className="px-2 py-1 rounded-full bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] text-[color:var(--accent)]">
+            Unread {unreadMessages.length}
+          </span>
+        </div>
+      </div>
       {mustChange && (
         <div className="mb-4 p-3 rounded-lg bg-[color:var(--bg-surface)] border border-[color:var(--border-subtle)] text-[color:var(--text-muted)] text-xs leading-relaxed">
           <strong className="text-[color:var(--text-primary)]">Welcome to TaskFlow.</strong>{' '}
@@ -109,94 +152,128 @@ export default function Inbox() {
       {loading ? (
         <p className="text-[color:var(--text-muted)] text-xs">Loading…</p>
       ) : messages.length === 0 ? (
-        <p className="text-[color:var(--text-muted)] text-xs">No messages.</p>
+        <div className="rounded-xl border border-dashed border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] p-8 text-center">
+          <p className="text-sm font-medium text-[color:var(--text-primary)]">No inbox items</p>
+          <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+            You will see invitation requests and release notes here.
+          </p>
+        </div>
       ) : (
-        <div className="flex flex-col lg:flex-row gap-6 w-full">
-          <ul className="w-full lg:w-[42%] min-w-0 space-y-2">
-            {messages.map((m) => (
-              <li
-                key={m._id}
-                role="button"
-                tabIndex={0}
-                onClick={() => openMessage(m)}
-                onKeyDown={(e) => e.key === 'Enter' && openMessage(m)}
-                className={`p-3 rounded-lg border cursor-pointer transition text-xs ${
-                  selectedMessage?._id === m._id
-                    ? 'bg-[color:var(--bg-elevated)] border-[color:var(--border-subtle)] ring-1 ring-[color:var(--border-subtle)]'
-                    : m.readAt
-                      ? 'bg-[color:var(--bg-surface)] border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-elevated)]'
-                      : 'bg-[color:var(--bg-elevated)] border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-elevated)]'
-                }`}
-              >
-                <div className="flex justify-between items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-medium text-[color:var(--text-primary)] truncate text-sm">{m.title}</h3>
-                    {m.body && (
-                      <p className="mt-0.5 text-[color:var(--text-muted)] text-xs line-clamp-1">
-                        {m.body}
-                      </p>
-                    )}
-                    <p className="mt-1 text-[color:var(--text-muted)] text-[11px]">
-                      {m.createdAt ? formatDateTimeDDMMYYYY(m.createdAt) : ''}
-                    </p>
-                  </div>
-                  {isInvitationPending(m) && (
-                    <span className="shrink-0 text-[11px] text-[color:var(--text-muted)] font-medium">
-                      Pending
-                    </span>
-                  )}
-                  {m.type === 'project_invitation' && m.meta?.invitationId && m.meta?.status === 'accepted' && (
-                    <span className="shrink-0 text-[11px] text-[color:var(--accent)] font-medium">
-                      Accepted
-                    </span>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,420px),minmax(0,1fr)] gap-5 w-full">
+          <div className="rounded-xl border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] p-3">
+            <div className="space-y-4 max-h-[calc(100vh-14rem)] overflow-y-auto pr-1">
+              {unreadMessages.length > 0 && (
+                <section>
+                  <p className="px-2 pb-2 text-[11px] uppercase tracking-wide text-[color:var(--text-muted)]">
+                    Unread
+                  </p>
+                  <ul className="space-y-2">
+                    {unreadMessages.map((m) => (
+                      <li
+                        key={m._id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openMessage(m)}
+                        onKeyDown={(e) => e.key === 'Enter' && openMessage(m)}
+                        className={`p-3 rounded-lg border cursor-pointer transition text-xs ${
+                          selectedMessage?._id === m._id
+                            ? 'bg-[color:var(--bg-elevated)] border-[color:var(--border-subtle)] ring-1 ring-[color:var(--border-subtle)]'
+                            : 'bg-[color:var(--bg-elevated)] border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-elevated)]'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-[color:var(--accent)] shrink-0" />
+                              <p className="text-[11px] text-[color:var(--text-muted)]">{getInboxTypeLabel(m.type)}</p>
+                            </div>
+                            <h3 className="mt-1 font-medium text-[color:var(--text-primary)] truncate text-sm">{m.title}</h3>
+                            {m.body && <p className="mt-0.5 text-[color:var(--text-muted)] text-xs line-clamp-1">{m.body}</p>}
+                            <p className="mt-1 text-[color:var(--text-muted)] text-[11px]">
+                              {m.createdAt ? formatDateTimeDDMMYYYY(m.createdAt) : ''}
+                            </p>
+                          </div>
+                          {isInvitationPending(m) && (
+                            <span className="shrink-0 text-[11px] text-[color:var(--text-muted)] font-medium">Pending</span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {readMessages.length > 0 && (
+                <section>
+                  <p className="px-2 pb-2 text-[11px] uppercase tracking-wide text-[color:var(--text-muted)]">Read</p>
+                  <ul className="space-y-2">
+                    {readMessages.map((m) => (
+                      <li
+                        key={m._id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openMessage(m)}
+                        onKeyDown={(e) => e.key === 'Enter' && openMessage(m)}
+                        className={`p-3 rounded-lg border cursor-pointer transition text-xs ${
+                          selectedMessage?._id === m._id
+                            ? 'bg-[color:var(--bg-elevated)] border-[color:var(--border-subtle)] ring-1 ring-[color:var(--border-subtle)]'
+                            : 'bg-[color:var(--bg-surface)] border-[color:var(--border-subtle)] hover:bg-[color:var(--bg-elevated)]'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-[11px] text-[color:var(--text-muted)]">{getInboxTypeLabel(m.type)}</p>
+                          <h3 className="mt-1 font-medium text-[color:var(--text-primary)] truncate text-sm">{m.title}</h3>
+                          {m.body && <p className="mt-0.5 text-[color:var(--text-muted)] text-xs line-clamp-1">{m.body}</p>}
+                          <p className="mt-1 text-[color:var(--text-muted)] text-[11px]">
+                            {m.createdAt ? formatDateTimeDDMMYYYY(m.createdAt) : ''}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+          </div>
 
-          {selectedMessage && (
-            <div className="w-full lg:flex-1 min-w-0 rounded-xl border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] overflow-hidden flex flex-col lg:sticky lg:top-6 max-h-[calc(100vh-12rem)]">
-              <div className="p-3 border-b border-[color:var(--border-subtle)] flex items-center justify-between shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setSelectedMessage(null)}
-                  className="text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] text-xs font-medium"
-                >
-                  ← Back
-                </button>
-              </div>
+          <div className="rounded-xl border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] overflow-hidden flex flex-col min-h-[18rem]">
+            {selectedMessage ? (
               <div className="p-4 overflow-y-auto flex-1 min-h-0">
                 {actionError && (
                   <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
                     {actionError}
                   </div>
                 )}
-                <h2 className="text-sm font-semibold text-[color:var(--text-primary)]">
-                  {selectedMessage.title}
-                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2 py-1 rounded-full text-[11px] bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] text-[color:var(--text-muted)]">
+                    {getInboxTypeLabel(selectedMessage.type)}
+                  </span>
+                  {!selectedMessage.readAt && (
+                    <span className="px-2 py-1 rounded-full text-[11px] bg-[color:var(--accent)]/15 text-[color:var(--accent)]">
+                      Unread
+                    </span>
+                  )}
+                </div>
+                <h2 className="mt-3 text-base font-semibold text-[color:var(--text-primary)]">{selectedMessage.title}</h2>
                 <p className="mt-1 text-[color:var(--text-muted)] text-xs">
                   {selectedMessage.createdAt ? formatDateTimeDDMMYYYY(selectedMessage.createdAt) : ''}
                 </p>
-                <div className="mt-3 text-[color:var(--text-primary)] text-xs whitespace-pre-wrap leading-relaxed">
+                <div className="mt-4 text-[color:var(--text-primary)] text-sm whitespace-pre-wrap leading-relaxed">
                   {selectedMessage.body || '—'}
                 </div>
                 {selectedMessage.type === 'release_notes' && (selectedMessage.meta as { projectId?: string })?.projectId && (
-                  <div className="mt-4 pt-4 border-t border-[color:var(--border-subtle)]">
+                  <div className="mt-5 pt-4 border-t border-[color:var(--border-subtle)]">
                     <Link
                       to={`/projects/${(selectedMessage.meta as { projectId: string }).projectId}/versions`}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] text-xs text-[color:var(--text-primary)] font-medium hover:bg-[color:var(--bg-surface)] transition"
                     >
-                      View release notes →
+                      View release notes
                     </Link>
                   </div>
                 )}
                 {selectedMessage.type === 'project_invitation' && selectedMessage.meta?.invitationId && (
-                  <div className="mt-4 pt-4 border-t border-[color:var(--border-subtle)]">
+                  <div className="mt-5 pt-4 border-t border-[color:var(--border-subtle)]">
                     {selectedMessage.meta?.status === 'accepted' ? (
-                      <p className="text-[color:var(--accent)] text-xs font-medium">
-                        You accepted this invitation.
-                      </p>
+                      <p className="text-[color:var(--accent)] text-xs font-medium">You accepted this invitation.</p>
                     ) : (
                       <div className="flex flex-wrap gap-2 mt-2">
                         <button
@@ -220,7 +297,7 @@ export default function Inbox() {
                   </div>
                 )}
                 {!selectedMessage.readAt && selectedMessage.type !== 'project_invitation' && (
-                  <div className="mt-4">
+                  <div className="mt-5">
                     <button
                       type="button"
                       onClick={() => markRead(selectedMessage._id)}
@@ -231,8 +308,12 @@ export default function Inbox() {
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="h-full flex items-center justify-center p-8 text-center">
+                <p className="text-xs text-[color:var(--text-muted)]">Select an inbox item to view details.</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
