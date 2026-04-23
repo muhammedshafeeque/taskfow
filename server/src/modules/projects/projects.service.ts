@@ -379,12 +379,22 @@ export async function releaseVersionToEnvironment(
   // Group by issue type (dynamic from project issue types); section headings = type names
   const issueTypeNames = (p.issueTypes ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((t) => t.name);
   const byType: Record<string, Array<{ key: string; title: string; description: string }>> = {};
+  /** One line for GFM table cells: strip HTML, normalize whitespace, cap length. */
+  const plainTextForMarkdownCell = (raw: string, maxLen = 50000): string => {
+    let s = (raw ?? '').trim();
+    if (!s) return '';
+    s = s.replace(/<[^>]+>/g, ' ');
+    s = s.replace(/\s+/g, ' ');
+    s = s.replace(/\|/g, ', ');
+    if (s.length > maxLen) return `${s.slice(0, maxLen)}…`;
+    return s;
+  };
   for (const issue of issues) {
     const i = issue as unknown as { type: string; key?: string; title: string; description?: string; project?: { key: string } };
     const projKey = i.project && typeof i.project === 'object' && 'key' in i.project ? (i.project as { key: string }).key : '';
     const key = i.key ?? (projKey ? `${projKey}-${String(issue._id).slice(-6)}` : String(issue._id).slice(-8));
     const typeName = i.type ?? 'Task';
-    const desc = (i.description ?? '').trim().replace(/\r?\n/g, ' ').replace(/\|/g, ', ').slice(0, 200);
+    const desc = plainTextForMarkdownCell(i.description ?? '');
     if (!byType[typeName]) byType[typeName] = [];
     byType[typeName].push({ key, title: i.title, description: desc });
   }
@@ -408,7 +418,8 @@ export async function releaseVersionToEnvironment(
     releaseNotes += `| Id | Name | Description |\n| --- | --- | --- |\n`;
     for (const item of items) {
       const esc = (s: string) => s.replace(/\|/g, ', ');
-      releaseNotes += `| ${esc(item.key)} | ${esc(item.title)} | ${esc(item.description)} |\n`;
+      // Bold issue id so the reader can render it as a link to the issue; name/description stay plain.
+      releaseNotes += `| **${esc(item.key)}** | ${esc(item.title)} | ${esc(item.description)} |\n`;
     }
     releaseNotes += '\n';
   }

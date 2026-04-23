@@ -1,4 +1,5 @@
 import type { RefObject } from 'react';
+import { Fragment, cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -12,7 +13,61 @@ export function sanitizeReleaseNotesForDisplay(notes: string): string {
     .trim();
 }
 
-const ISSUE_KEY_REGEX = /^[A-Z][A-Z0-9]*-\d+$/;
+/**
+ * TaskFlow issue keys: e.g. PROJ-42 or PROJ-a3f2b1 (project key + numeric suffix or last 6 of ObjectId hex).
+ */
+const ISSUE_KEY_TOKEN_RE = /^[A-Za-z][A-Za-z0-9]{0,20}-(?:\d+|[a-fA-F0-9]{6})$/;
+
+const ISSUE_KEY_SPLIT_RE = /\b([A-Za-z][A-Za-z0-9]{0,20}-(?:\d+|[a-fA-F0-9]{6}))\b/g;
+
+export function isIssueKeyToken(s: string): boolean {
+  return ISSUE_KEY_TOKEN_RE.test(s.trim());
+}
+
+function linkifyPlainString(s: string, projectId: string): ReactNode {
+  if (!projectId || !s) return s;
+  const parts = s.split(ISSUE_KEY_SPLIT_RE);
+  return parts.map((part, i) => {
+    if (part && isIssueKeyToken(part)) {
+      return (
+        <Link
+          key={i}
+          to={`/projects/${projectId}/issues/${encodeURIComponent(part)}`}
+          className="font-mono text-[color:var(--accent)] hover:underline underline-offset-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </Link>
+      );
+    }
+    return <Fragment key={i}>{part}</Fragment>;
+  });
+}
+
+function linkifyNodes(node: ReactNode, projectId: string): ReactNode {
+  if (node == null || typeof node === 'boolean') return node;
+  if (typeof node === 'string') return linkifyPlainString(node, projectId);
+  if (typeof node === 'number') return node;
+  if (Array.isArray(node)) {
+    return node.map((child, i) => <Fragment key={i}>{linkifyNodes(child, projectId)}</Fragment>);
+  }
+  if (!isValidElement(node)) return node;
+  const el = node as ReactElement<{ children?: ReactNode }>;
+  if (el.type === Link) return el;
+  if (el.type === Fragment) {
+    const ch = el.props?.children;
+    if (ch === undefined || ch === null) return el;
+    return <Fragment>{linkifyNodes(ch, projectId)}</Fragment>;
+  }
+  // Custom markdown components (e.g. strong → issue link) — do not recurse or we double-wrap.
+  if (typeof el.type === 'function') return el;
+  if (typeof el.type === 'string') {
+    const ch = el.props?.children;
+    if (ch === undefined || ch === null) return el;
+    return cloneElement(el, undefined, linkifyNodes(ch, projectId));
+  }
+  return el;
+}
 
 export function ReleaseNotesMarkdownBody({
   notes,
@@ -61,7 +116,9 @@ export function ReleaseNotesMarkdownBody({
             <th className="px-4 py-3 text-[color:var(--text-primary)] font-semibold whitespace-nowrap">{children}</th>
           ),
           td: ({ children }) => (
-            <td className="px-4 py-3 text-[color:var(--text-primary)] align-top max-w-md">{children}</td>
+            <td className="px-4 py-3 text-[color:var(--text-primary)] align-top max-w-xl break-words">
+              {pid ? linkifyNodes(children, pid) : children}
+            </td>
           ),
           ul: ({ children }) => <ul className="list-none space-y-2 my-3">{children}</ul>,
           li: ({ children }) => (
@@ -77,11 +134,11 @@ export function ReleaseNotesMarkdownBody({
               : typeof children === 'string'
                 ? children
                 : null;
-            if (text && ISSUE_KEY_REGEX.test(text) && pid) {
+            if (text && isIssueKeyToken(text) && pid) {
               return (
                 <Link
                   to={`/projects/${pid}/issues/${encodeURIComponent(text)}`}
-                  className="font-semibold text-[color:var(--text-primary)] underline underline-offset-2"
+                  className="font-semibold text-[color:var(--accent)] hover:underline underline-offset-2 font-mono"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {text}
