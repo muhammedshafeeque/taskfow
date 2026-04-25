@@ -147,6 +147,17 @@ export function SettingsIcon(props: IconProps) {
   );
 }
 
+/** Hub / move-style control: center dot with four outward brackets (workspace & settings). */
+export function AppHubSettingsIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <circle cx="12" cy="12" r="2" />
+      <path d="M12 4v2.5M12 17.5V20M4 12h2.5M17.5 12H20" />
+      <path d="M7 7l1.6 1.6M15.4 15.4 17 17M17 7l-1.6 1.6M7 17l1.6-1.6" />
+    </BaseIcon>
+  );
+}
+
 export function TestCasesIcon(props: IconProps) {
   return (
     <BaseIcon {...props}>

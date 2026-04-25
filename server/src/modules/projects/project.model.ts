@@ -80,6 +80,9 @@ export interface IProject extends Document {
   description: string;
   lead: mongoose.Types.ObjectId;
   archived: boolean;
+  /** TaskFlow workspace (internal organization) */
+  taskflowOrganizationId?: mongoose.Types.ObjectId;
+  /** Optional link to a customer portal org (client) */
   orgId?: mongoose.Types.ObjectId;
   nextIssueNumber: number;
   statuses: IProjectStatus[];
@@ -177,10 +180,11 @@ const projectReleaseRuleSchema = new Schema<IProjectReleaseRule>(
 const projectSchema = new Schema<IProject>(
   {
     name: { type: String, required: true },
-    key: { type: String, required: true, unique: true, uppercase: true },
+    key: { type: String, required: true, uppercase: true },
     description: { type: String, default: '' },
     lead: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     archived: { type: Boolean, default: false },
+    taskflowOrganizationId: { type: Schema.Types.ObjectId, ref: 'Organization', default: null, index: true },
     orgId: { type: Schema.Types.ObjectId, ref: 'CustomerOrg', default: null },
     nextIssueNumber: { type: Number, default: 1 },
     statuses: { type: [projectStatusSchema], default: undefined },
@@ -192,6 +196,16 @@ const projectSchema = new Schema<IProject>(
     releaseRules: { type: [projectReleaseRuleSchema], default: undefined },
   },
   { timestamps: true }
+);
+
+/** Unique project key per TaskFlow organization (legacy rows without org are not in this index). */
+projectSchema.index(
+  { taskflowOrganizationId: 1, key: 1 },
+  {
+    unique: true,
+    // Use $type only — `$ne: null` is rewritten to `$not` and is not allowed in partial indexes on some MongoDB versions.
+    partialFilterExpression: { taskflowOrganizationId: { $type: 'objectId' } },
+  }
 );
 
 export const Project = mongoose.model<IProject>('Project', projectSchema);

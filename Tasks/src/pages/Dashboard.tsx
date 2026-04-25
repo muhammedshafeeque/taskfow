@@ -16,7 +16,8 @@ import SectionCard from '../components/SectionCard';
 import { getChartColor } from '../lib/chartTheme';
 
 export default function Dashboard() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const workspaceKey = user?.activeOrganizationId ?? '';
   const [projects, setProjects] = useState<{ data: Project[]; total: number }>({ data: [], total: 0 });
   const [stats, setStats] = useState<{
     totalIssues: number;
@@ -39,7 +40,7 @@ export default function Dashboard() {
       if (res.success && res.data)
         setProjects({ data: res.data.data, total: res.data.total });
     });
-  }, [token]);
+  }, [token, workspaceKey]);
 
   useEffect(() => {
     if (!token) return;
@@ -48,7 +49,7 @@ export default function Dashboard() {
       setStatsLoading(false);
       if (res.success && res.data) setStats(res.data);
     });
-  }, [token]);
+  }, [token, workspaceKey]);
 
   const chartData = stats
     ? Object.entries(stats.issuesByStatus).map(([status, count]) => ({ status, count }))
@@ -78,8 +79,8 @@ export default function Dashboard() {
         ) : stats && (stats.totalIssues > 0 || chartData.length > 0) ? (
           <div className="mb-8 space-y-6">
             <SectionCard
-              title="Cross-project overview"
-              description="Key issue stats across all projects you can access."
+              title="Workspace overview"
+              description="Key issue stats across projects in your current workspace."
             >
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <MetricCard title="Total issues" value={stats.totalIssues} />

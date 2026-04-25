@@ -1,11 +1,12 @@
 import http from "http";
 import app from "./app";
 import { connectDb } from "./config/db";
-import { env } from "./config/env";
+import { env, validateRuntimeConfig } from "./config/env";
 import { initWebSocket } from "./websocket";
 
 async function startServer() {
   try {
+    validateRuntimeConfig();
     await connectDb();
 
     const server = http.createServer(app);

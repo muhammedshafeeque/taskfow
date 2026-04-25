@@ -9,6 +9,9 @@ import { ApiError } from '../../utils/ApiError';
 import type { ReportFilters } from '../reports/reportFilters';
 import { buildIssueMatch } from '../reports/reportFilters';
 import { getClosedStatusNamesForProject, getClosedStatusNamesFromStatuses } from '../projects/statusClassification';
+import { getProjectObjectIdsInWorkspace } from '../projects/workspaceProjectAccess';
+
+export { getProjectObjectIdsInWorkspace } from '../projects/workspaceProjectAccess';
 
 export interface WorkloadEntry {
   userId: string;
@@ -23,8 +26,13 @@ export interface WorkloadStats {
   entries: WorkloadEntry[];
 }
 
-export async function getWorkloadStats(userId: string, projectId?: string, filters?: ReportFilters): Promise<WorkloadStats> {
-  const match = await buildIssueMatch(userId, projectId, filters ?? {});
+export async function getWorkloadStats(
+  userId: string,
+  projectId?: string,
+  filters?: ReportFilters,
+  taskflowOrganizationId?: string | null
+): Promise<WorkloadStats> {
+  const match = await buildIssueMatch(userId, projectId, filters ?? {}, taskflowOrganizationId);
   if (!match) return { entries: [] };
   const issues = await Issue.find(match).select('assignee status storyPoints project').lean();
   const projectIds = [...new Set(issues.map((i) => String(i.project)).filter(Boolean))];
@@ -116,11 +124,15 @@ export interface EstimatesStats {
 
 export async function getProjectDeliveryEstimate(
   projectId: string,
-  userId: string
+  userId: string,
+  taskflowOrganizationId?: string | null
 ): Promise<ProjectDeliveryEstimate> {
   const userObjectId = new mongoose.Types.ObjectId(userId);
   const isMember = await ProjectMember.exists({ user: userObjectId, project: projectId });
-  if (!isMember) {
+  const inWorkspace = (await getProjectObjectIdsInWorkspace(userId, taskflowOrganizationId)).some(
+    (id) => String(id) === projectId
+  );
+  if (!isMember || !inWorkspace) {
     return {
       remainingEstimateMinutes: 0,
       loggedMinutesOnDone: 0,
@@ -197,16 +209,20 @@ export async function getProjectDeliveryEstimate(
   };
 }
 
-export async function getEstimatesStats(userId: string, projectId?: string): Promise<EstimatesStats> {
-  const userObjectId = new mongoose.Types.ObjectId(userId);
+export async function getEstimatesStats(
+  userId: string,
+  projectId?: string,
+  taskflowOrganizationId?: string | null
+): Promise<EstimatesStats> {
+  const scoped = await getProjectObjectIdsInWorkspace(userId, taskflowOrganizationId);
+  const scopedSet = new Set(scoped.map((id) => String(id)));
+
   let projectIds: mongoose.Types.ObjectId[];
   if (projectId) {
-    const isMember = await ProjectMember.exists({ user: userObjectId, project: projectId });
-    if (!isMember) return { totalMinutes: 0, byProject: [], byAssignee: [] };
+    if (!scopedSet.has(projectId)) return { totalMinutes: 0, byProject: [], byAssignee: [] };
     projectIds = [new mongoose.Types.ObjectId(projectId)];
   } else {
-    const ids = await ProjectMember.find({ user: userObjectId }).distinct('project');
-    projectIds = ids.map((id) => new mongoose.Types.ObjectId(id));
+    projectIds = scoped;
   }
   if (projectIds.length === 0) return { totalMinutes: 0, byProject: [], byAssignee: [] };
 
@@ -251,7 +267,7 @@ export async function getEstimatesStats(userId: string, projectId?: string): Pro
 
   if (projectId) {
     const [delivery, unestimatedCountResult] = await Promise.all([
-      getProjectDeliveryEstimate(projectId, userId),
+      getProjectDeliveryEstimate(projectId, userId, taskflowOrganizationId),
       Issue.aggregate<{ count: number }>([
         { $match: { project: new mongoose.Types.ObjectId(projectId) } },
         {
@@ -318,10 +334,17 @@ export interface ProjectMetricsResponse {
   totalEstimatedMinutes: number;
 }
 
-export async function getProjectMetrics(projectId: string, userId: string): Promise<ProjectMetricsResponse | null> {
+export async function getProjectMetrics(
+  projectId: string,
+  userId: string,
+  taskflowOrganizationId?: string | null
+): Promise<ProjectMetricsResponse | null> {
   const userObjectId = new mongoose.Types.ObjectId(userId);
   const isMember = await ProjectMember.exists({ user: userObjectId, project: projectId });
-  if (!isMember) return null;
+  const inWorkspace = (await getProjectObjectIdsInWorkspace(userId, taskflowOrganizationId)).some(
+    (id) => String(id) === projectId
+  );
+  if (!isMember || !inWorkspace) return null;
   const projectObjectId = new mongoose.Types.ObjectId(projectId);
 
   const { Project } = await import('../projects/project.model');
@@ -445,10 +468,14 @@ export interface DashboardStats {
   }>;
 }
 
-export async function getStatsForUser(userId: string): Promise<DashboardStats> {
-  const userObjectId = new mongoose.Types.ObjectId(userId);
-  const projectIds = await ProjectMember.find({ user: userObjectId }).distinct('project');
-  const projectObjectIds = projectIds.map((id) => new mongoose.Types.ObjectId(id));
+export async function getStatsForUser(
+  userId: string,
+  taskflowOrganizationId: string | null | undefined
+): Promise<DashboardStats> {
+  const projectObjectIds = await getProjectObjectIdsInWorkspace(userId, taskflowOrganizationId);
+  if (projectObjectIds.length === 0) {
+    return { totalIssues: 0, issuesByStatus: {}, recentIssues: [] };
+  }
 
   const [aggregationResult, recentList] = await Promise.all([
     Issue.aggregate<{ _id: string; count: number }>([
@@ -502,10 +529,11 @@ export interface PortfolioProjectEntry {
   progressPercent: number;
 }
 
-export async function getPortfolioStats(userId: string): Promise<PortfolioProjectEntry[]> {
-  const userObjectId = new mongoose.Types.ObjectId(userId);
-  const projectIds = await ProjectMember.find({ user: userObjectId }).distinct('project');
-  const projectObjectIds = projectIds.map((id) => new mongoose.Types.ObjectId(id));
+export async function getPortfolioStats(
+  userId: string,
+  taskflowOrganizationId: string | null | undefined
+): Promise<PortfolioProjectEntry[]> {
+  const projectObjectIds = await getProjectObjectIdsInWorkspace(userId, taskflowOrganizationId);
   if (projectObjectIds.length === 0) return [];
 
   const projectDocs = await Project.find({ _id: { $in: projectObjectIds } }).select('name key statuses').lean();
@@ -599,8 +627,13 @@ export interface DefectMetrics {
   defectDensity?: number;
 }
 
-export async function getDefectMetrics(userId: string, projectId?: string, filters?: ReportFilters): Promise<DefectMetrics> {
-  const match = await buildIssueMatch(userId, projectId, filters ?? {});
+export async function getDefectMetrics(
+  userId: string,
+  projectId?: string,
+  filters?: ReportFilters,
+  taskflowOrganizationId?: string | null
+): Promise<DefectMetrics> {
+  const match = await buildIssueMatch(userId, projectId, filters ?? {}, taskflowOrganizationId);
   if (!match) return { totalBugs: 0, openBugs: 0, closedBugs: 0, byStatus: {}, byPriority: {} };
 
   const allIssues = await Issue.find(match)
@@ -661,17 +694,18 @@ export async function getCostUsageReport(
   userId: string,
   projectId: string | undefined,
   from: Date,
-  to: Date
+  to: Date,
+  taskflowOrganizationId?: string | null
 ): Promise<CostUsageReport> {
-  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const scoped = await getProjectObjectIdsInWorkspace(userId, taskflowOrganizationId);
+  const scopedSet = new Set(scoped.map((id) => String(id)));
+
   let projectIds: mongoose.Types.ObjectId[];
   if (projectId) {
-    const isMember = await ProjectMember.exists({ user: userObjectId, project: projectId });
-    if (!isMember) return { entries: [] };
+    if (!scopedSet.has(projectId)) return { entries: [] };
     projectIds = [new mongoose.Types.ObjectId(projectId)];
   } else {
-    const ids = await ProjectMember.find({ user: userObjectId }).distinct('project');
-    projectIds = ids.map((id) => new mongoose.Types.ObjectId(id));
+    projectIds = scoped;
   }
   if (projectIds.length === 0) return { entries: [] };
 
@@ -774,9 +808,11 @@ function normalizeDayRange(from: Date, to: Date): { startDay: Date; endDay: Date
 }
 
 /** Users who share at least one project with the requester (for picker + validation). */
-export async function getPerformanceReportTeammates(requestingUserId: string): Promise<PerformanceReportTeammate[]> {
-  const userObjectId = new mongoose.Types.ObjectId(requestingUserId);
-  const projectIds = await ProjectMember.find({ user: userObjectId }).distinct('project');
+export async function getPerformanceReportTeammates(
+  requestingUserId: string,
+  taskflowOrganizationId?: string | null
+): Promise<PerformanceReportTeammate[]> {
+  const projectIds = await getProjectObjectIdsInWorkspace(requestingUserId, taskflowOrganizationId);
   if (projectIds.length === 0) return [];
 
   const memberUserIds = await ProjectMember.distinct('user', { project: { $in: projectIds } });
@@ -797,7 +833,8 @@ export async function getPerformanceReport(
   targetUserIds: string[],
   from: Date,
   to: Date,
-  filterProjectIds?: string[] | null
+  filterProjectIds?: string[] | null,
+  taskflowOrganizationId?: string | null
 ): Promise<PerformanceReportResult> {
   const empty: PerformanceReportResult = {
     rows: [],
@@ -805,11 +842,10 @@ export async function getPerformanceReport(
     chartByMember: [],
   };
 
-  const userObjectId = new mongoose.Types.ObjectId(requestingUserId);
-  const memberProjectIds = await ProjectMember.find({ user: userObjectId }).distinct('project');
-  if (memberProjectIds.length === 0) return empty;
+  const workspaceProjectIds = await getProjectObjectIdsInWorkspace(requestingUserId, taskflowOrganizationId);
+  if (workspaceProjectIds.length === 0) return empty;
 
-  const allowedProjectIdSet = new Set(memberProjectIds.map((id) => String(id)));
+  const allowedProjectIdSet = new Set(workspaceProjectIds.map((id) => String(id)));
   let projectObjectIds: mongoose.Types.ObjectId[];
   if (filterProjectIds && filterProjectIds.length > 0) {
     for (const pid of filterProjectIds) {
@@ -822,10 +858,10 @@ export async function getPerformanceReport(
     }
     projectObjectIds = filterProjectIds.map((id) => new mongoose.Types.ObjectId(id));
   } else {
-    projectObjectIds = memberProjectIds.map((id) => new mongoose.Types.ObjectId(id));
+    projectObjectIds = workspaceProjectIds;
   }
 
-  const memberUserIds = await ProjectMember.distinct('user', { project: { $in: memberProjectIds } });
+  const memberUserIds = await ProjectMember.distinct('user', { project: { $in: workspaceProjectIds } });
   const allowedUserIds = new Set(memberUserIds.map((id) => String(id)));
 
   const uniqueTargets = [...new Set(targetUserIds.map((id) => id.trim()).filter(Boolean))];

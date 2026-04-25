@@ -1,4 +1,7 @@
+import mongoose from 'mongoose';
 import { AuditLog } from './auditLog.model';
+import { Project } from '../projects/project.model';
+import { OrganizationMember } from '../organizations/organizationMember.model';
 
 export interface CreateAuditLogInput {
   userId: string;
@@ -36,7 +39,8 @@ export interface ListAuditLogsOptions {
 
 export async function findAll(
   filters: ListAuditLogsFilters = {},
-  opts: ListAuditLogsOptions = {}
+  opts: ListAuditLogsOptions = {},
+  taskflowOrganizationId?: string | null
 ): Promise<{ data: unknown[]; total: number; page: number; limit: number; totalPages: number }> {
   const { page = 1, limit = 50 } = opts;
   const skip = (page - 1) * limit;
@@ -47,15 +51,37 @@ export async function findAll(
   if (filters.resourceType) filter.resourceType = filters.resourceType;
   if (filters.projectId) filter.projectId = filters.projectId;
 
+  let mongoFilter: Record<string, unknown> = filter;
+
+  if (taskflowOrganizationId && mongoose.Types.ObjectId.isValid(taskflowOrganizationId)) {
+    const orgOid = new mongoose.Types.ObjectId(taskflowOrganizationId);
+    const [workspaceProjectIds, orgMemberUserIds] = await Promise.all([
+      Project.find({ taskflowOrganizationId: orgOid }).distinct('_id'),
+      OrganizationMember.find({ organization: orgOid, status: 'active' }).distinct('user'),
+    ]);
+    const workspaceScope = {
+      $or: [
+        { projectId: { $in: workspaceProjectIds } },
+        {
+          $and: [
+            { $or: [{ projectId: null }, { projectId: { $exists: false } }] },
+            { user: { $in: orgMemberUserIds } },
+          ],
+        },
+      ],
+    };
+    mongoFilter = Object.keys(filter).length > 0 ? { $and: [filter, workspaceScope] } : workspaceScope;
+  }
+
   const [data, total] = await Promise.all([
-    AuditLog.find(filter)
+    AuditLog.find(mongoFilter)
       .populate('user', 'name email')
       .populate('projectId', 'name key')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean(),
-    AuditLog.countDocuments(filter),
+    AuditLog.countDocuments(mongoFilter),
   ]);
 
   return {

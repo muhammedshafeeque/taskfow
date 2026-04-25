@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { ApiError } from '../utils/ApiError';
 import { env } from '../config/env';
@@ -8,6 +9,7 @@ import type { AuthPayload } from '../types/express';
 import { resolveEffectiveGlobalPermissions } from '../modules/auth/effectivePermissions';
 import { mergeTaskflowPermissionFloor } from '../modules/auth/permissionMerge';
 import { mapLegacyCustomerPermissions } from '../shared/constants/legacyPermissionMap';
+import { OrganizationMember } from '../modules/organizations/organizationMember.model';
 
 export async function authMiddleware(
   req: Request,
@@ -23,7 +25,11 @@ export async function authMiddleware(
   }
 
   try {
-    const decoded = jwt.verify(token, env.jwtSecret) as { sub: string; userType?: string };
+    const decoded = jwt.verify(token, env.jwtSecret) as {
+      sub: string;
+      userType?: string;
+      activeOrganizationId?: string;
+    };
 
     if (decoded.userType === 'customer') {
       const customerUser = await CustomerUser.findById(decoded.sub).populate('roleId', 'permissions').lean();
@@ -118,6 +124,36 @@ export async function authMiddleware(
       permissions,
       mustChangePassword: user.mustChangePassword ?? false,
     } as AuthPayload;
+
+    const userOid = user._id;
+    const headerOrg = (req.headers['x-organization-id'] as string | undefined)?.trim();
+    let activeOrganizationId: string | undefined;
+
+    if (headerOrg && mongoose.Types.ObjectId.isValid(headerOrg)) {
+      const ok = await OrganizationMember.exists({
+        organization: headerOrg,
+        user: userOid,
+        status: 'active',
+      });
+      if (ok) activeOrganizationId = headerOrg;
+    }
+    if (!activeOrganizationId && decoded.activeOrganizationId && mongoose.Types.ObjectId.isValid(decoded.activeOrganizationId)) {
+      const ok = await OrganizationMember.exists({
+        organization: decoded.activeOrganizationId,
+        user: userOid,
+        status: 'active',
+      });
+      if (ok) activeOrganizationId = decoded.activeOrganizationId;
+    }
+    if (!activeOrganizationId) {
+      const m = await OrganizationMember.findOne({ user: userOid, status: 'active' })
+        .sort({ createdAt: 1 })
+        .select('organization')
+        .lean();
+      if (m?.organization) activeOrganizationId = String(m.organization);
+    }
+    req.activeOrganizationId = activeOrganizationId;
+
     next();
   } catch {
     next(new ApiError(401, 'Invalid or expired token'));

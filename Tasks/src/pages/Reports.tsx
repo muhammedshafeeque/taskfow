@@ -115,7 +115,7 @@ export default function ReportsPage() {
     usersApi.list(1, 200, token).then((res) => {
       if (res.success && res.data?.data) setFilterUsers(res.data.data);
     });
-  }, [token, showCreate]);
+  }, [token, showCreate, user?.activeOrganizationId]);
 
   useEffect(() => {
     if (!showCreate) return;
@@ -146,7 +146,7 @@ export default function ReportsPage() {
         setProjects(projectsRes.data.data.map((p) => ({ _id: p._id, name: p.name, key: p.key })));
       }
     });
-  }, [token]);
+  }, [token, user?.activeOrganizationId]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();

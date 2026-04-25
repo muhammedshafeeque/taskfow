@@ -13,11 +13,9 @@ import * as watchersService from '../watchers/watchers.service';
 import * as issuesService from '../issues/issues.service';
 import { ProjectMember } from '../projects/projectMember.model';
 import { extractMentionedUserIds } from '../../utils/mentions';
-import { sendPushToUser } from '../../services/push.service';
-import { notifyPush } from '../../websocket';
 import { env } from '../../config/env';
 import { ApiError } from '../../utils/ApiError';
-import * as notificationsService from '../notifications/notifications.service';
+import { notifyUser } from '../notifications/notificationDispatch.service';
 
 export async function createComment(req: Request, res: Response): Promise<void> {
   const authorId = req.user?.id;
@@ -53,16 +51,14 @@ export async function createComment(req: Request, res: Response): Promise<void> 
       data: { type: 'mentioned', issueId: req.params.issueId, issueKey, projectId, commentId: commentId ? String(commentId) : undefined },
     };
     for (const userId of memberUserIds) {
-      notificationsService.createNotification({
+      notifyUser({
         userId,
-        type: 'mention',
+        eventKey: 'task_mentioned',
         title: payload.title,
         body: payload.body,
         link: issueUrl,
         metadata: payload.data,
       }).catch(() => {});
-      sendPushToUser(userId, payload).catch((err) => console.error('Push failed:', err));
-      notifyPush(userId, payload);
     }
   }
 

@@ -17,6 +17,7 @@ function countSummary(t: ProjectTemplate) {
 
 export default function ProjectTemplates() {
   const { token, user } = useAuth();
+  const activeOrgId = user?.activeOrganizationId;
   const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -38,7 +39,7 @@ export default function ProjectTemplates() {
       if (res.success && res.data) setTemplates(Array.isArray(res.data) ? res.data : []);
       else setError(res.message ?? 'Failed to load templates');
     });
-  }, [token]);
+  }, [token, activeOrgId]);
 
   async function handleDelete(id: string) {
     if (!token) return;
@@ -76,7 +77,7 @@ export default function ProjectTemplates() {
 
   return (
     <div className="p-8 animate-fade-in">
-      <div className="w-full px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-[color:var(--text-primary)]">Project templates</h1>
           <p className="text-sm text-[color:var(--text-muted)] mt-1">
@@ -85,6 +86,9 @@ export default function ProjectTemplates() {
               creating or editing a project
             </Link>
             , or save a new one from any project&apos;s settings.
+          </p>
+          <p className="text-xs text-[color:var(--text-muted)] mt-2">
+            Custom templates are scoped to your active workspace (header). The built-in default is available in every workspace.
           </p>
         </div>
 

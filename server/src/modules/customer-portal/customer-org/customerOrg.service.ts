@@ -15,8 +15,20 @@ import {
   renderCustomerOrgAdminInviteEmail,
 } from '../../../services/email.service';
 import type { CreateOrgInput, UpdateOrgInput } from './customerOrg.validation';
+import mongoose from 'mongoose';
 
 const SALT_ROUNDS = 10;
+
+export async function assertCustomerOrgInTaskflowWorkspace(
+  customerOrgId: string,
+  taskflowOrganizationId: string
+): Promise<void> {
+  const ok = await CustomerOrg.exists({
+    _id: customerOrgId,
+    taskflowOrganizationId: new mongoose.Types.ObjectId(taskflowOrganizationId),
+  });
+  if (!ok) throw new ApiError(404, 'Organisation not found');
+}
 
 function generateSlug(name: string): string {
   return name
@@ -28,7 +40,11 @@ function generateSlug(name: string): string {
     .slice(0, 60);
 }
 
-export async function createOrg(input: CreateOrgInput, createdBy: string): Promise<unknown> {
+export async function createOrg(
+  input: CreateOrgInput,
+  createdBy: string,
+  taskflowOrganizationId: string
+): Promise<unknown> {
   let slug = input.slug ?? generateSlug(input.name);
 
   // Ensure slug uniqueness
@@ -43,6 +59,7 @@ export async function createOrg(input: CreateOrgInput, createdBy: string): Promi
   const org = await CustomerOrg.create({
     name: input.name,
     slug,
+    taskflowOrganizationId: new mongoose.Types.ObjectId(taskflowOrganizationId),
     contactEmail: input.contactEmail,
     description: input.description,
     logo: input.logo,
@@ -109,11 +126,16 @@ export async function createOrg(input: CreateOrgInput, createdBy: string): Promi
   };
 }
 
-export async function listOrgs(query: { page?: number; limit?: number; status?: string }): Promise<unknown> {
+export async function listOrgs(
+  query: { page?: number; limit?: number; status?: string },
+  taskflowOrganizationId: string
+): Promise<unknown> {
   const page = Math.max(1, query.page ?? 1);
   const limit = Math.min(100, Math.max(1, query.limit ?? 20));
   const skip = (page - 1) * limit;
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = {
+    taskflowOrganizationId: new mongoose.Types.ObjectId(taskflowOrganizationId),
+  };
   if (query.status) filter.status = query.status;
 
   const [data, total] = await Promise.all([
@@ -141,8 +163,11 @@ export async function listOrgs(query: { page?: number; limit?: number; status?: 
   };
 }
 
-export async function getOrg(id: string): Promise<unknown> {
-  const org = await CustomerOrg.findById(id).lean();
+export async function getOrg(id: string, taskflowOrganizationId: string): Promise<unknown> {
+  const org = await CustomerOrg.findOne({
+    _id: id,
+    taskflowOrganizationId: new mongoose.Types.ObjectId(taskflowOrganizationId),
+  }).lean();
   if (!org) throw new ApiError(404, 'Organisation not found');
 
   const memberCount = await CustomerUser.countDocuments({
@@ -153,8 +178,11 @@ export async function getOrg(id: string): Promise<unknown> {
   return { ...org, memberCount };
 }
 
-export async function updateOrg(id: string, input: UpdateOrgInput): Promise<unknown> {
-  const org = await CustomerOrg.findById(id).lean();
+export async function updateOrg(id: string, input: UpdateOrgInput, taskflowOrganizationId: string): Promise<unknown> {
+  const org = await CustomerOrg.findOne({
+    _id: id,
+    taskflowOrganizationId: new mongoose.Types.ObjectId(taskflowOrganizationId),
+  }).lean();
   if (!org) throw new ApiError(404, 'Organisation not found');
 
   const update: Record<string, unknown> = {};
@@ -170,11 +198,13 @@ export async function updateOrg(id: string, input: UpdateOrgInput): Promise<unkn
   return updated;
 }
 
-export async function listOrgRoles(orgId: string): Promise<unknown[]> {
+export async function listOrgRoles(orgId: string, taskflowOrganizationId: string): Promise<unknown[]> {
+  await assertCustomerOrgInTaskflowWorkspace(orgId, taskflowOrganizationId);
   return CustomerRole.find({ customerOrgId: orgId }).sort({ isSystemRole: -1, name: 1 }).lean();
 }
 
-export async function listOrgMembers(orgId: string): Promise<unknown[]> {
+export async function listOrgMembers(orgId: string, taskflowOrganizationId: string): Promise<unknown[]> {
+  await assertCustomerOrgInTaskflowWorkspace(orgId, taskflowOrganizationId);
   return CustomerUser.find({ customerOrgId: orgId })
     .populate('roleId', 'name permissions isSystemRole')
     .select('-password -passwordResetToken -passwordResetExpires')
@@ -185,8 +215,10 @@ export async function listOrgMembers(orgId: string): Promise<unknown[]> {
 export async function updateOrgMember(
   orgId: string,
   userId: string,
-  input: { roleId?: string; status?: string }
+  input: { roleId?: string; status?: string },
+  taskflowOrganizationId: string
 ): Promise<unknown> {
+  await assertCustomerOrgInTaskflowWorkspace(orgId, taskflowOrganizationId);
   const user = await CustomerUser.findOne({ _id: userId, customerOrgId: orgId }).lean();
   if (!user) throw new ApiError(404, 'Member not found');
 
@@ -212,8 +244,10 @@ export async function updateOrgMember(
 export async function updateOrgMemberPermissions(
   orgId: string,
   userId: string,
-  overrides: { granted: string[]; revoked: string[] }
+  overrides: { granted: string[]; revoked: string[] },
+  taskflowOrganizationId: string
 ): Promise<unknown> {
+  await assertCustomerOrgInTaskflowWorkspace(orgId, taskflowOrganizationId);
   const user = await CustomerUser.findOne({ _id: userId, customerOrgId: orgId }).lean();
   if (!user) throw new ApiError(404, 'Member not found');
 
@@ -230,8 +264,11 @@ export async function updateOrgMemberPermissions(
   return updated;
 }
 
-export async function deleteOrg(id: string): Promise<void> {
-  const org = await CustomerOrg.findById(id).lean();
+export async function deleteOrg(id: string, taskflowOrganizationId: string): Promise<void> {
+  const org = await CustomerOrg.findOne({
+    _id: id,
+    taskflowOrganizationId: new mongoose.Types.ObjectId(taskflowOrganizationId),
+  }).lean();
   if (!org) throw new ApiError(404, 'Organisation not found');
 
   // Check for active requests

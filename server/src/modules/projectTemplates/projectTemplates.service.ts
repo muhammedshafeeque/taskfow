@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { ProjectTemplate } from './projectTemplate.model';
+import { ApiError } from '../../utils/ApiError';
 
 const DEFAULT_STATUSES = [
   { id: 'backlog', name: 'Backlog', order: 0, isClosed: false },
@@ -35,10 +36,16 @@ function normalizeStatuses(statuses: unknown[]): unknown[] {
   });
 }
 
-export async function list(): Promise<unknown[]> {
-  const dbList = await ProjectTemplate.find().sort({ name: 1 }).lean();
+function builtInTemplate(): {
+  _id: string;
+  name: string;
+  description: string;
+  statuses: typeof DEFAULT_STATUSES;
+  issueTypes: typeof DEFAULT_ISSUE_TYPES;
+  priorities: typeof DEFAULT_PRIORITIES;
+} {
   const defaultConfig = getDefaultConfig();
-  const builtIn = {
+  return {
     _id: 'default',
     name: 'Built-in default',
     description: 'Standard backlog workflow, issue types, and priorities',
@@ -46,6 +53,16 @@ export async function list(): Promise<unknown[]> {
     issueTypes: defaultConfig.issueTypes,
     priorities: defaultConfig.priorities,
   };
+}
+
+/** List templates for the active workspace: built-in + custom rows for that org only. */
+export async function list(taskflowOrganizationId: string | null | undefined): Promise<unknown[]> {
+  const builtIn = builtInTemplate();
+  if (!taskflowOrganizationId || !mongoose.Types.ObjectId.isValid(taskflowOrganizationId)) {
+    return [builtIn];
+  }
+  const orgOid = new mongoose.Types.ObjectId(taskflowOrganizationId);
+  const dbList = await ProjectTemplate.find({ taskflowOrganizationId: orgOid }).sort({ name: 1 }).lean();
   const normalizedDb = dbList.map((tpl) => ({
     ...tpl,
     statuses: normalizeStatuses((tpl as { statuses?: unknown[] }).statuses ?? []),
@@ -53,12 +70,22 @@ export async function list(): Promise<unknown[]> {
   return [builtIn, ...normalizedDb];
 }
 
-export async function getById(templateId: string): Promise<unknown | null> {
+export async function getById(
+  templateId: string,
+  taskflowOrganizationId: string | null | undefined
+): Promise<unknown | null> {
   if (templateId === 'default') {
     const config = getDefaultConfig();
     return { _id: 'default', name: 'Default', description: '', ...config };
   }
-  const doc = await ProjectTemplate.findById(templateId).lean();
+  if (!mongoose.Types.ObjectId.isValid(templateId)) return null;
+  if (!taskflowOrganizationId || !mongoose.Types.ObjectId.isValid(taskflowOrganizationId)) {
+    return null;
+  }
+  const doc = await ProjectTemplate.findOne({
+    _id: templateId,
+    taskflowOrganizationId: new mongoose.Types.ObjectId(taskflowOrganizationId),
+  }).lean();
   if (!doc) return null;
   return {
     ...doc,
@@ -79,13 +106,18 @@ export function getDefaultConfig(): {
 }
 
 export async function createTemplateRecord(input: {
+  taskflowOrganizationId: string;
   name: string;
   description?: string;
   statuses: unknown[];
   issueTypes: unknown[];
   priorities: unknown[];
 }): Promise<unknown> {
+  if (!mongoose.Types.ObjectId.isValid(input.taskflowOrganizationId)) {
+    throw new ApiError(400, 'Invalid workspace id');
+  }
   const doc = await ProjectTemplate.create({
+    taskflowOrganizationId: new mongoose.Types.ObjectId(input.taskflowOrganizationId),
     name: input.name,
     description: input.description ?? '',
     statuses: normalizeStatuses(input.statuses),
@@ -95,15 +127,23 @@ export async function createTemplateRecord(input: {
   return doc.toObject();
 }
 
-export async function removeById(id: string): Promise<'not_found' | 'forbidden' | 'ok'> {
+export async function removeById(
+  id: string,
+  taskflowOrganizationId: string | null | undefined
+): Promise<'not_found' | 'forbidden' | 'ok'> {
   if (id === 'default') return 'forbidden';
   if (!mongoose.Types.ObjectId.isValid(id)) return 'not_found';
-  const r = await ProjectTemplate.findByIdAndDelete(id);
+  if (!taskflowOrganizationId || !mongoose.Types.ObjectId.isValid(taskflowOrganizationId)) return 'not_found';
+  const r = await ProjectTemplate.findOneAndDelete({
+    _id: id,
+    taskflowOrganizationId: new mongoose.Types.ObjectId(taskflowOrganizationId),
+  });
   return r ? 'ok' : 'not_found';
 }
 
 export async function updateById(
   id: string,
+  taskflowOrganizationId: string | null | undefined,
   input: {
     name?: string;
     description?: string;
@@ -114,6 +154,7 @@ export async function updateById(
 ): Promise<'not_found' | 'forbidden' | 'noop' | unknown> {
   if (id === 'default') return 'forbidden';
   if (!mongoose.Types.ObjectId.isValid(id)) return 'not_found';
+  if (!taskflowOrganizationId || !mongoose.Types.ObjectId.isValid(taskflowOrganizationId)) return 'not_found';
   const updates: Record<string, unknown> = {};
   if (input.name !== undefined) updates.name = input.name.trim();
   if (input.description !== undefined) updates.description = input.description.trim();
@@ -121,6 +162,10 @@ export async function updateById(
   if (input.issueTypes !== undefined) updates.issueTypes = input.issueTypes;
   if (input.priorities !== undefined) updates.priorities = input.priorities;
   if (Object.keys(updates).length === 0) return 'noop';
-  const doc = await ProjectTemplate.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true }).lean();
+  const doc = await ProjectTemplate.findOneAndUpdate(
+    { _id: id, taskflowOrganizationId: new mongoose.Types.ObjectId(taskflowOrganizationId) },
+    { $set: updates },
+    { new: true, runValidators: true }
+  ).lean();
   return doc ?? 'not_found';
 }

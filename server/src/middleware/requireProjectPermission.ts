@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { ApiError } from '../utils/ApiError';
+import { Project } from '../modules/projects/project.model';
 import { ProjectMember } from '../modules/projects/projectMember.model';
 import { ProjectDesignation } from '../modules/projects/projectDesignation.model';
 import { Role } from '../modules/roles/role.model';
@@ -59,10 +60,6 @@ export function requireProjectPermission(
 
     const authUser = req.user as any;
     const userPerms = authUser.permissions ?? [];
-    if (hasProjectFullAccess(userPerms)) {
-      next();
-      return;
-    }
 
     let projectId: string | undefined;
     for (const src of sources) {
@@ -78,6 +75,28 @@ export function requireProjectPermission(
 
     if (!projectId) {
       next(new ApiError(400, 'Project context required'));
+      return;
+    }
+
+    const proj = await Project.findById(projectId).select('taskflowOrganizationId').lean();
+    if (!proj) {
+      next(new ApiError(404, 'Project not found'));
+      return;
+    }
+    const projectTfOrg = (proj as { taskflowOrganizationId?: unknown }).taskflowOrganizationId;
+    const projectOrgStr = projectTfOrg ? String(projectTfOrg) : '';
+    const activeOrg = (req as Request & { activeOrganizationId?: string }).activeOrganizationId;
+    if (!projectOrgStr) {
+      next(new ApiError(403, 'Project is not linked to a workspace'));
+      return;
+    }
+    if (!activeOrg || projectOrgStr !== activeOrg) {
+      next(new ApiError(403, 'Project is not in the active workspace'));
+      return;
+    }
+
+    if (hasProjectFullAccess(userPerms)) {
+      next();
       return;
     }
 
@@ -115,7 +134,16 @@ export async function getProjectPermissionsForUser(
   projectId: string,
   userId: string,
   userPermissions?: string[],
+  activeOrganizationId?: string
 ): Promise<string[]> {
+  const proj = await Project.findById(projectId).select('taskflowOrganizationId').lean();
+  if (!proj) return [];
+  const pOrg = (proj as { taskflowOrganizationId?: unknown }).taskflowOrganizationId;
+  const projectOrgStr = pOrg ? String(pOrg) : '';
+  if (!projectOrgStr || (activeOrganizationId && projectOrgStr !== activeOrganizationId)) {
+    return [];
+  }
+
   // Global override: full project CRUD or wildcard permission grants all project-scoped permissions
   if (userPermissions && hasProjectFullAccess(userPermissions)) {
     return [...ALL_PROJECT_PERMISSIONS] as string[];

@@ -15,7 +15,9 @@ import * as analyticsService from '../analytics/analytics.service';
 export async function createProject(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
   const creatorId = req.user?.id;
   if (!creatorId) throw new ApiError(401, 'Unauthorized');
-  const project = await projectsService.create(req.body, creatorId);
+  const activeOrg = req.activeOrganizationId;
+  if (!activeOrg) throw new ApiError(400, 'Active workspace is required');
+  const project = await projectsService.create(req.body, creatorId, activeOrg);
   const proj = project as unknown as { _id?: string; name?: string; key?: string };
   logAudit({
     userId: creatorId,
@@ -42,12 +44,16 @@ export async function getProjects(req: Request & { user?: AuthPayload }, res: Re
   }
   const page = parseInt(String(req.query.page), 10) || 1;
   const limit = Math.min(parseInt(String(req.query.limit), 10) || 20, 100);
-  const result = await projectsService.findAllForUser(userId, permissions, { page, limit });
+  const activeOrg = req.activeOrganizationId;
+  if (!activeOrg) throw new ApiError(400, 'Active workspace is required');
+  const result = await projectsService.findAllForUser(userId, permissions, activeOrg, { page, limit });
   res.status(200).json({ success: true, data: result });
 }
 
 export async function getProjectById(req: Request, res: Response): Promise<void> {
-  const project = await projectsService.findById(req.params.id);
+  const activeOrg = req.activeOrganizationId;
+  if (!activeOrg) throw new ApiError(400, 'Active workspace is required');
+  const project = await projectsService.findById(req.params.id, activeOrg);
   if (!project) throw new ApiError(404, 'Project not found');
   res.status(200).json({ success: true, data: project });
 }
@@ -56,13 +62,20 @@ export async function getMyPermissions(req: Request & { user?: AuthPayload }, re
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
   const projectId = req.params.id;
-  const permissions = await getProjectPermissionsForUser(projectId, userId, req.user?.permissions ?? []);
+  const permissions = await getProjectPermissionsForUser(
+    projectId,
+    userId,
+    req.user?.permissions ?? [],
+    req.activeOrganizationId
+  );
   res.status(200).json({ success: true, data: { permissions } });
 }
 
 export async function saveSettingsTemplate(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
   const userId = req.user?.id;
-  const created = await projectsService.saveAsTemplate(req.params.id, req.body);
+  const activeOrg = req.activeOrganizationId;
+  if (!activeOrg) throw new ApiError(400, 'Active workspace is required');
+  const created = await projectsService.saveAsTemplate(req.params.id, req.body, activeOrg);
   if (!created) throw new ApiError(404, 'Project not found');
   const c = created as { _id?: unknown; name?: string };
   if (userId && c._id) {
@@ -81,7 +94,9 @@ export async function saveSettingsTemplate(req: Request & { user?: AuthPayload }
 
 export async function updateProject(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
   const userId = req.user?.id;
-  const project = await projectsService.update(req.params.id, req.body);
+  const activeOrg = req.activeOrganizationId;
+  if (!activeOrg) throw new ApiError(400, 'Active workspace is required');
+  const project = await projectsService.update(req.params.id, req.body, activeOrg);
   if (!project) throw new ApiError(404, 'Project not found');
   if (userId) {
     const proj = project as { name?: string; key?: string };
@@ -99,15 +114,25 @@ export async function updateProject(req: Request & { user?: AuthPayload }, res: 
 }
 
 export async function deleteProject(req: Request, res: Response): Promise<void> {
-  const deleted = await projectsService.remove(req.params.id);
+  const activeOrg = req.activeOrganizationId;
+  if (!activeOrg) throw new ApiError(400, 'Active workspace is required');
+  const deleted = await projectsService.remove(req.params.id, activeOrg);
   if (!deleted) throw new ApiError(404, 'Project not found');
   res.status(200).json({ success: true, data: { message: 'Project deleted' } });
 }
 
 export async function releaseVersion(req: Request, res: Response): Promise<void> {
   const projectId = req.params.id;
+  const activeOrg = req.activeOrganizationId;
+  if (!activeOrg) throw new ApiError(400, 'Active workspace is required');
   const { versionId, environmentId, issueIds } = req.body;
-  const result = await projectsService.releaseVersionToEnvironment(projectId, versionId, environmentId, issueIds);
+  const result = await projectsService.releaseVersionToEnvironment(
+    projectId,
+    versionId,
+    environmentId,
+    issueIds,
+    activeOrg
+  );
   res.status(200).json({ success: true, data: result });
 }
 

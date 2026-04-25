@@ -5,7 +5,8 @@ import { dashboardApi } from '../lib/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Portfolio() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const workspaceKey = user?.activeOrganizationId ?? '';
   const [entries, setEntries] = useState<Array<{
     projectId: string;
     projectName: string;
@@ -39,7 +40,7 @@ export default function Portfolio() {
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <h1 className="text-xl font-semibold mb-1">Portfolio</h1>
         <p className="text-[13px] text-[color:var(--text-muted)] mb-6">
-          Overview of projects with progress and health indicators.
+          Overview of projects in your current workspace with progress and health indicators.
         </p>
 
         {loading ? (

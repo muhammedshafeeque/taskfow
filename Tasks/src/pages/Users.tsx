@@ -39,6 +39,7 @@ function getRoleId(u: User): string | null {
 
 export default function Users() {
   const { token, user: currentUser, refreshUser } = useAuth();
+  const workspaceKey = currentUser?.activeOrganizationId ?? '';
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +91,7 @@ export default function Users() {
         setUsers(d.data ?? []);
       }
     });
-  }, [token]);
+  }, [token, workspaceKey]);
 
   useEffect(() => {
     if (!token) return;
@@ -98,7 +99,7 @@ export default function Users() {
       if (rRes.success && rRes.data) setRoles(Array.isArray(rRes.data) ? rRes.data : []);
       if (pRes.success && pRes.data) setAllPermissions(Array.isArray(pRes.data) ? pRes.data : []);
     });
-  }, [token]);
+  }, [token, workspaceKey]);
 
   // useEffect(() => {
   //   if (!token || !(userHasPermission(tfPerms, TASK_FLOW_PERMISSIONS.TASKFLOW.LICENSE.VIEW) || currentUser?.role === 'admin')) return;
@@ -488,7 +489,9 @@ export default function Users() {
             <div className="p-6 lg:p-8">
               <h2 className="text-lg font-semibold text-[color:var(--text-primary)] mb-2">Invite user</h2>
               <p className="text-sm text-[color:var(--text-muted)] mb-6">
-                They will receive an email with a temporary password. They must change it on first login.
+                If this email is not registered yet, they receive a temporary password by email and must change it on first
+                login. If they already have an account, they are added to this workspace and notified by email, inbox, and any
+                connected channels — no new password is sent.
               </p>
               <form onSubmit={handleInvite} className="space-y-4">
                 {error && (

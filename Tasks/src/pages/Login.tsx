@@ -1,19 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FiAlertCircle, FiLock, FiLogIn, FiMail } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
 import { FaMicrosoft } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
-import { authApi } from '../lib/api';
+import { authApi, type PublicAuthConfig } from '../lib/api';
+import { resolvePostAuthRoute } from '../lib/postAuthRedirect';
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, microsoftSso } = useAuth();
+  const { login, microsoftSso, switchWorkspace } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [ssoLoading, setSsoLoading] = useState(false);
+  const [publicConfig, setPublicConfig] = useState<PublicAuthConfig>({
+    signupEnabled: false,
+    emailPasswordEnabled: true,
+    providers: { google: false, microsoft: false },
+  });
 
   const msRedirectUri = useMemo(() => {
     if (typeof window === 'undefined') return 'http://localhost:5173/login';
@@ -25,6 +32,12 @@ export default function Login() {
   const oauthState = query.get('state');
   const oauthError = query.get('error');
   const oauthErrorDescription = query.get('error_description');
+
+  useEffect(() => {
+    authApi.publicConfig().then((res) => {
+      if (res.success && res.data) setPublicConfig(res.data);
+    });
+  }, []);
 
   useEffect(() => {
     if (oauthError) {
@@ -55,8 +68,9 @@ export default function Login() {
       // Clean URL (remove ?code=...).
       window.history.replaceState({}, document.title, '/login');
       const stored = localStorage.getItem('pm_user');
-      const u = stored ? (JSON.parse(stored) as { mustChangePassword?: boolean }) : null;
-      navigate(u?.mustChangePassword ? '/inbox' : '/');
+      const u = stored ? JSON.parse(stored) : null;
+      const next = u ? await resolvePostAuthRoute(u, switchWorkspace) : '/';
+      navigate(next);
     }
     run();
   }, [oauthCode, oauthState, microsoftSso, msRedirectUri, navigate]);
@@ -75,6 +89,12 @@ export default function Login() {
     window.location.href = res.data.url;
   }
 
+  function startGoogleLogin() {
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const base = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+    window.location.href = `${base}/api/auth/oauth/google`;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -82,13 +102,10 @@ export default function Login() {
     const result = await login(email, password);
     setLoading(false);
     if (result.ok) {
-      if (result.userType === 'customer') {
-        navigate('/portal');
-      } else {
-        const stored = localStorage.getItem('pm_user');
-        const u = stored ? (JSON.parse(stored) as { mustChangePassword?: boolean }) : null;
-        navigate(u?.mustChangePassword ? '/inbox' : '/');
-      }
+      const stored = localStorage.getItem('pm_user');
+      const u = stored ? JSON.parse(stored) : null;
+      const next = u ? await resolvePostAuthRoute(u, switchWorkspace) : '/';
+      navigate(next);
       return;
     }
     setError(result.error ?? 'Login failed');
@@ -152,76 +169,109 @@ export default function Login() {
                   {error}
                 </div>
               )}
-              <div className="space-y-5">
-                <div>
-                  <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-[color:var(--text-primary)]">
-                    Email
-                  </label>
-                  <div className="relative">
-                    <FiMail className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" />
-                    <input
-                      id="email"
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] py-3 pl-11 pr-4 text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] transition focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/45"
-                      placeholder="you@example.com"
-                    />
+              {publicConfig.emailPasswordEnabled ? (
+                <>
+                  <div className="space-y-5">
+                    <div>
+                      <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-[color:var(--text-primary)]">
+                        Email
+                      </label>
+                      <div className="relative">
+                        <FiMail className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" />
+                        <input
+                          id="email"
+                          type="email"
+                          autoComplete="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                          className="w-full rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] py-3 pl-11 pr-4 text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] transition focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/45"
+                          placeholder="you@example.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-[color:var(--text-primary)]">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <FiLock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" />
+                        <input
+                          id="password"
+                          type="password"
+                          autoComplete="current-password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                          className="w-full rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] py-3 pl-11 pr-4 text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] transition focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/45"
+                          placeholder="••••••••"
+                        />
+                      </div>
+                    </div>
                   </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || ssoLoading}
+                    className="btn-primary btn-primary-lg mt-6 w-full gap-2"
+                  >
+                    <FiLogIn className="text-base" />
+                    {loading ? 'Signing in…' : 'Sign in'}
+                  </button>
+                </>
+              ) : (
+                <div className="rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] px-4 py-3 text-sm text-[color:var(--text-muted)]">
+                  Email and password sign-in is disabled by the administrator.
                 </div>
+              )}
 
-                <div>
-                  <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-[color:var(--text-primary)]">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <FiLock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" />
-                    <input
-                      id="password"
-                      type="password"
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="w-full rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] py-3 pl-11 pr-4 text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] transition focus:border-[color:var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/45"
-                      placeholder="••••••••"
-                    />
-                  </div>
+              {(publicConfig.providers.google || publicConfig.providers.microsoft) && (
+                <div className="mt-5 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[color:var(--border-subtle)]" />
+                  <span className="text-[11px] text-[color:var(--text-muted)]">or</span>
+                  <div className="h-px flex-1 bg-[color:var(--border-subtle)]" />
                 </div>
-              </div>
+              )}
 
-              <button
-                type="submit"
-                disabled={loading || ssoLoading}
-                className="btn-primary btn-primary-lg mt-6 w-full gap-2"
-              >
-                <FiLogIn className="text-base" />
-                {loading ? 'Signing in…' : 'Sign in'}
-              </button>
+              {publicConfig.providers.google && (
+                <button
+                  type="button"
+                  onClick={startGoogleLogin}
+                  disabled={loading || ssoLoading}
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] px-4 py-3 font-medium text-[color:var(--text-primary)] transition hover:bg-[color:var(--bg-surface)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <FcGoogle className="text-lg" />
+                  Sign in with Google
+                </button>
+              )}
+              {publicConfig.providers.microsoft && (
+                <button
+                  type="button"
+                  onClick={startMicrosoftLogin}
+                  disabled={loading || ssoLoading}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] px-4 py-3 font-medium text-[color:var(--text-primary)] transition hover:bg-[color:var(--bg-surface)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <FaMicrosoft className="text-lg text-sky-500" />
+                  {ssoLoading ? 'Signing in with Microsoft…' : 'Sign in with Microsoft'}
+                </button>
+              )}
 
-              <div className="mt-5 flex items-center gap-3">
-                <div className="h-px flex-1 bg-[color:var(--border-subtle)]" />
-                <span className="text-[11px] text-[color:var(--text-muted)]">or</span>
-                <div className="h-px flex-1 bg-[color:var(--border-subtle)]" />
-              </div>
-
-              <button
-                type="button"
-                onClick={startMicrosoftLogin}
-                disabled={loading || ssoLoading}
-                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--bg-page)] px-4 py-3 font-medium text-[color:var(--text-primary)] transition hover:bg-[color:var(--bg-surface)] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <FaMicrosoft className="text-lg text-sky-500" />
-                {ssoLoading ? 'Signing in with Microsoft…' : 'Sign in with Microsoft'}
-              </button>
-
-              <p className="mt-6 text-center text-sm text-[color:var(--text-muted)]">
-                <Link to="/forgot-password" title="Reset your password" className="font-medium text-[color:var(--accent)] hover:underline">
-                  Forgot password?
-                </Link>
-              </p>
+              {publicConfig.emailPasswordEnabled && (
+                <p className="mt-6 text-center text-sm text-[color:var(--text-muted)]">
+                  <Link to="/forgot-password" title="Reset your password" className="font-medium text-[color:var(--accent)] hover:underline">
+                    Forgot password?
+                  </Link>
+                </p>
+              )}
+              {publicConfig.signupEnabled && publicConfig.emailPasswordEnabled && (
+                <p className="mt-2 text-center text-sm text-[color:var(--text-muted)]">
+                  Don&apos;t have an account?{' '}
+                  <Link to="/register" className="font-medium text-[color:var(--accent)] hover:underline">
+                    Sign up
+                  </Link>
+                </p>
+              )}
             </form>
           </section>
         </div>

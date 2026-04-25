@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "verbatimModuleSyntax": false,
+    "types": ["jest", "node", "@testing-library/jest-dom", "vite/client"],
+    "noUncheckedSideEffectImports": false
+  },
+  "include": ["src", "jest.config.ts"]
+}

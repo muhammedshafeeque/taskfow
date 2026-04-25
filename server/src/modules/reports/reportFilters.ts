@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { ProjectMember } from '../projects/projectMember.model';
+import { getProjectObjectIdsInWorkspace } from '../projects/workspaceProjectAccess';
 
 /** Sentinel for "unassigned" in assigneeIds (client sends same string). */
 export const REPORT_UNASSIGNED = '__unassigned__';
@@ -71,17 +71,18 @@ function startOfUtcDay(d: Date): Date {
 export async function buildIssueMatch(
   userId: string,
   projectId: string | undefined,
-  filters: ReportFilters
+  filters: ReportFilters,
+  taskflowOrganizationId?: string | null
 ): Promise<Record<string, unknown> | null> {
-  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const scoped = await getProjectObjectIdsInWorkspace(userId, taskflowOrganizationId);
+  const scopedSet = new Set(scoped.map((id) => String(id)));
+
   let projectIds: mongoose.Types.ObjectId[];
   if (projectId) {
-    const isMember = await ProjectMember.exists({ user: userObjectId, project: projectId });
-    if (!isMember) return null;
+    if (!scopedSet.has(projectId)) return null;
     projectIds = [new mongoose.Types.ObjectId(projectId)];
   } else {
-    const ids = await ProjectMember.find({ user: userObjectId }).distinct('project');
-    projectIds = ids.map((id) => new mongoose.Types.ObjectId(id));
+    projectIds = scoped;
   }
   if (projectIds.length === 0) return null;
 

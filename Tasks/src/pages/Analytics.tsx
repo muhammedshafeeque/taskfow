@@ -41,7 +41,7 @@ export default function Analytics() {
         setLoading(false);
         setError('Failed to load');
       });
-  }, [token, from, to]);
+  }, [token, from, to, user?.activeOrganizationId]);
 
   if (
     user?.role !== 'admin' &&

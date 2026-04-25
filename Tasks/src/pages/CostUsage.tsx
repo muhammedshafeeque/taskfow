@@ -27,7 +27,8 @@ function exportToCsv(entries: CostEntry[]): void {
 }
 
 export default function CostUsage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const workspaceKey = user?.activeOrganizationId ?? '';
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<CostEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +49,7 @@ export default function CostUsage() {
         setProjects(d.data ?? []);
       }
     });
-  }, [token]);
+  }, [token, workspaceKey]);
 
   useEffect(() => {
     if (!token) return;
@@ -65,7 +66,7 @@ export default function CostUsage() {
         setLoading(false);
         setError('Failed to load');
       });
-  }, [token, projectId, from, to]);
+  }, [token, projectId, from, to, workspaceKey]);
 
   return (
     <div className="w-full p-6 lg:p-8 space-y-6">

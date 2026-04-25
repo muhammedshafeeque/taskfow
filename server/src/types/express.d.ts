@@ -24,6 +24,8 @@ declare global {
     interface User extends AuthPayload {}
     interface Request {
       customerUser?: CustomerAuthPayload;
+      /** Active TaskFlow workspace (set for TaskFlow JWT users). */
+      activeOrganizationId?: string;
     }
   }
 }

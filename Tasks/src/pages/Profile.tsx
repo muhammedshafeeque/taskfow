@@ -2,7 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getFilesFromDataTransfer } from '../lib/clipboardFiles';
-import { authApi, uploadFile, projectsApi, dashboardApi, type Project, type DashboardStats } from '../lib/api';
+import {
+  authApi,
+  uploadFile,
+  projectsApi,
+  dashboardApi,
+  type Project,
+  type DashboardStats,
+} from '../lib/api';
 import { formatDateDDMMYYYY } from '../lib/dateFormat';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -52,14 +59,14 @@ export default function Profile() {
     projectsApi.list(1, 50, token).then((res) => {
       if (res.success && res.data?.data) setProjects(res.data.data);
     });
-  }, [token]);
+  }, [token, user?.activeOrganizationId]);
 
   useEffect(() => {
     if (!token) return;
     dashboardApi.getStats(token).then((res) => {
       if (res.success && res.data) setStats(res.data);
     });
-  }, [token]);
+  }, [token, user?.activeOrganizationId]);
 
   const avatarValidTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
@@ -396,22 +403,14 @@ export default function Profile() {
       <div className="rounded-xl border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] p-6">
         <h2 className="text-base font-medium text-[color:var(--text-primary)] mb-2">Notification preferences</h2>
         <p className="text-sm text-[color:var(--text-muted)] mb-4">
-          You receive notifications through two channels:
+          Configure methods per event in a dedicated notification settings screen.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
-          <div className="flex-1">
-            <h3 className="text-sm font-medium text-[color:var(--text-primary)] mb-1">Inbox</h3>
-            <p className="text-xs text-[color:var(--text-muted)]">
-              Major information: project invitations, approvals, release notes. Check your inbox for important updates.
-            </p>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-medium text-[color:var(--text-primary)] mb-1">Push notifications</h3>
-            <p className="text-xs text-[color:var(--text-muted)]">
-              Immediate alerts: issue assigned to you, mentioned in comments, issue closed. Enable in browser for real-time updates.
-            </p>
-          </div>
-        </div>
+        <Link
+          to="/profile/notifications"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[color:var(--accent)] text-white text-sm font-medium hover:opacity-90"
+        >
+          Open notification settings
+        </Link>
       </div>
 
       {/* Profile details grid */}

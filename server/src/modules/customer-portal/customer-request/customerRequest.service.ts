@@ -30,6 +30,30 @@ import {
 } from './customerRequestInbox';
 import { User } from '../../auth/user.model';
 
+async function customerOrgIdsInTaskflowWorkspace(
+  taskflowOrganizationId: string | null | undefined
+): Promise<mongoose.Types.ObjectId[]> {
+  if (!taskflowOrganizationId || !mongoose.Types.ObjectId.isValid(taskflowOrganizationId)) return [];
+  return CustomerOrg.find({ taskflowOrganizationId }).distinct('_id');
+}
+
+async function assertCustomerRequestInTaskflowWorkspace(
+  requestId: string,
+  taskflowOrganizationId: string | null | undefined
+): Promise<void> {
+  if (!taskflowOrganizationId || !mongoose.Types.ObjectId.isValid(taskflowOrganizationId)) {
+    throw new ApiError(400, 'Active workspace required');
+  }
+  const reqDoc = await CustomerRequest.findById(requestId).select('customerOrgId').lean();
+  if (!reqDoc) throw new ApiError(404, 'Request not found');
+  const coId = (reqDoc as { customerOrgId?: unknown }).customerOrgId;
+  const org = await CustomerOrg.findById(coId).select('taskflowOrganizationId').lean();
+  const tfOrg = org && (org as { taskflowOrganizationId?: unknown }).taskflowOrganizationId;
+  if (!tfOrg || String(tfOrg) !== taskflowOrganizationId) {
+    throw new ApiError(403, 'Request is not in the active workspace');
+  }
+}
+
 export async function createRequest(
   orgId: string,
   createdByUserId: string,
@@ -455,8 +479,11 @@ export async function customerAdminReject(
 export async function tfApprove(
   requestId: string,
   reviewedByTfUserId: string,
-  note?: string
+  note: string | undefined,
+  taskflowOrganizationId: string | null | undefined
 ): Promise<unknown> {
+  await assertCustomerRequestInTaskflowWorkspace(requestId, taskflowOrganizationId);
+
   const request = await CustomerRequest.findOne({
     _id: requestId,
     status: 'pending_taskflow_approval',
@@ -610,9 +637,12 @@ export async function tfApprove(
 export async function tfReject(
   requestId: string,
   reviewedByTfUserId: string,
-  note?: string,
-  reason?: string
+  note: string | undefined,
+  reason: string | undefined,
+  taskflowOrganizationId: string | null | undefined
 ): Promise<unknown> {
+  await assertCustomerRequestInTaskflowWorkspace(requestId, taskflowOrganizationId);
+
   const request = await CustomerRequest.findOne({
     _id: requestId,
     status: 'pending_taskflow_approval',
@@ -692,14 +722,26 @@ export async function tfReject(
 }
 
 export async function listPendingTfApproval(
-  query: { page?: number; limit?: number } = {}
+  query: { page?: number; limit?: number } = {},
+  taskflowOrganizationId?: string | null
 ): Promise<unknown> {
   const page = Math.max(1, query.page ?? 1);
   const limit = Math.min(100, Math.max(1, query.limit ?? 20));
   const skip = (page - 1) * limit;
 
+  const allowedOrgIds = await customerOrgIdsInTaskflowWorkspace(taskflowOrganizationId);
+  if (allowedOrgIds.length === 0) {
+    return {
+      requests: [],
+      total: 0,
+      page,
+      limit,
+      totalPages: 1,
+    };
+  }
+
   const [data, total] = await Promise.all([
-    CustomerRequest.find({ status: 'pending_taskflow_approval' })
+    CustomerRequest.find({ status: 'pending_taskflow_approval', customerOrgId: { $in: allowedOrgIds } })
       .populate('createdBy', 'name email')
       .populate('customerOrgId', 'name slug')
       .populate('projectId', 'name key')
@@ -707,7 +749,7 @@ export async function listPendingTfApproval(
       .skip(skip)
       .limit(limit)
       .lean(),
-    CustomerRequest.countDocuments({ status: 'pending_taskflow_approval' }),
+    CustomerRequest.countDocuments({ status: 'pending_taskflow_approval', customerOrgId: { $in: allowedOrgIds } }),
   ]);
 
   return {
@@ -720,15 +762,32 @@ export async function listPendingTfApproval(
 }
 
 export async function listAllRequestsTf(
-  query: { status?: string; orgId?: string; page?: number; limit?: number } = {}
+  query: { status?: string; orgId?: string; page?: number; limit?: number } = {},
+  taskflowOrganizationId?: string | null
 ): Promise<unknown> {
   const page = Math.max(1, query.page ?? 1);
   const limit = Math.min(100, Math.max(1, query.limit ?? 50));
   const skip = (page - 1) * limit;
 
-  const filter: Record<string, unknown> = {};
+  const allowedOrgIds = await customerOrgIdsInTaskflowWorkspace(taskflowOrganizationId);
+  if (allowedOrgIds.length === 0) {
+    return {
+      requests: [],
+      total: 0,
+      page,
+      limit,
+      totalPages: 1,
+    };
+  }
+
+  const filter: Record<string, unknown> = { customerOrgId: { $in: allowedOrgIds } };
   if (query.status) filter.status = query.status;
-  if (query.orgId) filter.customerOrgId = query.orgId;
+  if (query.orgId) {
+    if (!allowedOrgIds.some((id) => String(id) === query.orgId)) {
+      throw new ApiError(403, 'Organisation is not in the active workspace');
+    }
+    filter.customerOrgId = query.orgId;
+  }
 
   const [data, total] = await Promise.all([
     CustomerRequest.find(filter)

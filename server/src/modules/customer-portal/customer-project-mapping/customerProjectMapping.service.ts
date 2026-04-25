@@ -1,7 +1,12 @@
 import { CustomerProjectMapping } from './customerProjectMapping.model';
 import { ApiError } from '../../../utils/ApiError';
+import { assertCustomerOrgInTaskflowWorkspace } from '../customer-org/customerOrg.service';
+import { Project } from '../../projects/project.model';
 
-export async function listMappings(orgId: string): Promise<unknown[]> {
+export async function listMappings(orgId: string, taskflowOrganizationId?: string): Promise<unknown[]> {
+  if (taskflowOrganizationId) {
+    await assertCustomerOrgInTaskflowWorkspace(orgId, taskflowOrganizationId);
+  }
   return CustomerProjectMapping.find({ customerOrgId: orgId })
     .populate('projectId', 'name key description')
     .populate('mappedBy', 'name email')
@@ -13,8 +18,17 @@ export async function addMapping(
   orgId: string,
   projectId: string,
   mappedBy: string,
-  allowedRequestTypes?: string[]
+  allowedRequestTypes?: string[],
+  taskflowOrganizationId?: string
 ): Promise<unknown> {
+  if (taskflowOrganizationId) {
+    await assertCustomerOrgInTaskflowWorkspace(orgId, taskflowOrganizationId);
+    const project = await Project.findById(projectId).select('taskflowOrganizationId').lean();
+    const pOrg = (project as { taskflowOrganizationId?: unknown } | null)?.taskflowOrganizationId;
+    if (!project || !pOrg || String(pOrg) !== taskflowOrganizationId) {
+      throw new ApiError(400, 'Project must belong to the same workspace as this customer organisation');
+    }
+  }
   const existing = await CustomerProjectMapping.findOne({
     customerOrgId: orgId,
     projectId,
@@ -38,7 +52,14 @@ export async function addMapping(
   return populated;
 }
 
-export async function removeMapping(orgId: string, projectId: string): Promise<void> {
+export async function removeMapping(
+  orgId: string,
+  projectId: string,
+  taskflowOrganizationId?: string
+): Promise<void> {
+  if (taskflowOrganizationId) {
+    await assertCustomerOrgInTaskflowWorkspace(orgId, taskflowOrganizationId);
+  }
   const mapping = await CustomerProjectMapping.findOne({
     customerOrgId: orgId,
     projectId,
@@ -51,8 +72,12 @@ export async function removeMapping(orgId: string, projectId: string): Promise<v
 export async function updateMapping(
   orgId: string,
   projectId: string,
-  input: { allowedRequestTypes?: string[]; status?: 'active' | 'inactive' }
+  input: { allowedRequestTypes?: string[]; status?: 'active' | 'inactive' },
+  taskflowOrganizationId?: string
 ): Promise<unknown> {
+  if (taskflowOrganizationId) {
+    await assertCustomerOrgInTaskflowWorkspace(orgId, taskflowOrganizationId);
+  }
   const mapping = await CustomerProjectMapping.findOne({
     customerOrgId: orgId,
     projectId,

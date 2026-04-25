@@ -52,6 +52,8 @@ function TimesheetDetailsModal({
   token: string | null;
   onUpdated: () => void;
 }) {
+  const { user } = useAuth();
+  const workspaceKey = user?.activeOrganizationId ?? '';
   const [items, setItems] = useState<TimesheetDetailItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -69,7 +71,7 @@ function TimesheetDetailsModal({
         if (res.success && res.data) setItems(res.data);
       })
       .finally(() => setLoading(false));
-  }, [open, userId, date, token]);
+  }, [open, userId, date, token, workspaceKey]);
 
   const canEdit = currentUserId === userId;
 
@@ -242,6 +244,7 @@ function TimesheetDetailsModal({
 export default function Timesheet() {
   const { projectId } = useParams<{ projectId?: string }>();
   const { token, user } = useAuth();
+  const workspaceKey = user?.activeOrganizationId ?? '';
   const [data, setData] = useState<TimesheetResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -291,7 +294,7 @@ export default function Timesheet() {
       })
       .catch(() => setError('Failed to load timesheet'))
       .finally(() => setLoading(false));
-  }, [token, projectId, startDate, endDate]);
+  }, [token, projectId, startDate, endDate, workspaceKey]);
 
   const dateColumns = useMemo(() => {
     const start = parseToLocalDate(startDate);

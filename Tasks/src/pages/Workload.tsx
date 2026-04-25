@@ -12,7 +12,8 @@ import {
 } from 'recharts';
 
 export default function Workload() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const workspaceKey = user?.activeOrganizationId ?? '';
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [entries, setEntries] = useState<WorkloadEntry[]>([]);
@@ -23,7 +24,7 @@ export default function Workload() {
     projectsApi.list(1, 200, token).then((res) => {
       if (res.success && res.data) setProjects(res.data.data ?? []);
     });
-  }, [token]);
+  }, [token, workspaceKey]);
 
   useEffect(() => {
     if (!token) return;
@@ -32,7 +33,7 @@ export default function Workload() {
       setLoading(false);
       if (res.success && res.data) setEntries(res.data.entries ?? []);
     });
-  }, [token, selectedProjectId]);
+  }, [token, selectedProjectId, workspaceKey]);
 
   const chartData = entries.map((e) => ({
     name: e.userName || 'Unassigned',

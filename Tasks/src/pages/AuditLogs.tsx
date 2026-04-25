@@ -25,7 +25,7 @@ export default function AuditLogs() {
     projectsApi.list(1, 200, token).then((res) => {
       if (res.success && res.data) setProjects(res.data.data ?? []);
     });
-  }, [token]);
+  }, [token, user?.activeOrganizationId]);
 
   useEffect(() => {
     if (!token || user?.role !== 'admin') return;
@@ -40,7 +40,7 @@ export default function AuditLogs() {
         setTotal(res.data.total ?? 0);
       }
     });
-  }, [token, user?.role, page, limit, filterUser, filterAction, filterResourceType, filterProjectId]);
+  }, [token, user?.role, user?.activeOrganizationId, page, limit, filterUser, filterAction, filterResourceType, filterProjectId]);
 
   if (user?.role !== 'admin') {
     return (

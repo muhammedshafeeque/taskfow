@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env';
+import * as authService from './auth.service';
 
 export async function oauthSuccessHandler(req: Request, res: Response): Promise<void> {
   const user = req.user as
@@ -18,11 +19,10 @@ export async function oauthSuccessHandler(req: Request, res: Response): Promise<
   }
   const ut =
     user && 'userType' in user && typeof user.userType === 'string' ? user.userType : 'taskflow';
-  const token = jwt.sign(
-    { sub, userType: ut },
-    env.jwtSecret,
-    { expiresIn: env.jwtExpiresIn } as jwt.SignOptions
-  );
+  const token =
+    ut === 'taskflow'
+      ? await authService.issueTaskflowAccessTokenForOAuth(sub)
+      : jwt.sign({ sub, userType: ut }, env.jwtSecret, { expiresIn: env.jwtExpiresIn } as jwt.SignOptions);
   res.redirect(`${env.frontendUrl}/auth/oauth-callback?token=${encodeURIComponent(token)}`);
 }
 

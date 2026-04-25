@@ -107,7 +107,7 @@ function useIsCompactLayout(): boolean {
   return compact;
 }
 
-export default function Inbox() {
+export default function Inbox({ forceLoad = false }: { forceLoad?: boolean }) {
   const { token } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -143,9 +143,10 @@ export default function Inbox() {
   }, [token]);
 
   useEffect(() => {
-    if (!token || location.pathname !== '/inbox') return;
+    if (!token) return;
+    if (!forceLoad && location.pathname !== '/inbox') return;
     loadInbox();
-  }, [token, inboxVersion, location.pathname, loadInbox]);
+  }, [token, inboxVersion, location.pathname, loadInbox, forceLoad]);
 
   async function markRead(id: string) {
     await markInboxItemRead(id);
@@ -238,7 +239,7 @@ export default function Inbox() {
   const showReadingPanel = !isCompact || !!selectedMessage;
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col w-full min-w-0 px-2 sm:px-3 py-2 sm:py-3 max-h-[min(100dvh,100%)]">
+    <div className="flex h-full flex-1 min-h-0 flex-col w-full min-w-0 px-2 sm:px-3 py-2 sm:py-3">
       {/* Toolbar — Gmail-style */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4 border-b border-[color:var(--border-subtle)] pb-3">
         <div className="flex items-center gap-2 min-w-0">

@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import { UsageEvent } from './usageEvent.model';
+import { Project } from '../projects/project.model';
+import { OrganizationMember } from '../organizations/organizationMember.model';
 
 export async function logEvent(
   userId: string,
@@ -23,15 +25,50 @@ export interface UsageStats {
   topUsers: Array<{ userId: string; userName: string; count: number }>;
 }
 
-export async function getUsageStats(from: Date, to: Date): Promise<UsageStats> {
+function emptyUsageStats(): UsageStats {
+  return {
+    dailyActiveUsers: [],
+    actionsByType: [],
+    topUsers: [],
+  };
+}
+
+export async function getUsageStats(
+  from: Date,
+  to: Date,
+  taskflowOrganizationId?: string | null
+): Promise<UsageStats> {
   const fromStart = new Date(from);
   fromStart.setHours(0, 0, 0, 0);
   const toEnd = new Date(to);
   toEnd.setHours(23, 59, 59, 999);
 
+  if (!taskflowOrganizationId || !mongoose.Types.ObjectId.isValid(taskflowOrganizationId)) {
+    return emptyUsageStats();
+  }
+
+  const orgOid = new mongoose.Types.ObjectId(taskflowOrganizationId);
+  const [workspaceProjectIds, orgMemberUserIds] = await Promise.all([
+    Project.find({ taskflowOrganizationId: orgOid }).distinct('_id'),
+    OrganizationMember.find({ organization: orgOid, status: 'active' }).distinct('user'),
+  ]);
+
+  const workspaceMatch: Record<string, unknown> = {
+    createdAt: { $gte: fromStart, $lte: toEnd },
+    $or: [
+      { projectId: { $in: workspaceProjectIds } },
+      {
+        $and: [
+          { $or: [{ projectId: null }, { projectId: { $exists: false } }] },
+          { userId: { $in: orgMemberUserIds } },
+        ],
+      },
+    ],
+  };
+
   const [dauAgg, actionAgg, userAgg] = await Promise.all([
     UsageEvent.aggregate<{ _id: { year: number; month: number; day: number }; count: number }>([
-      { $match: { createdAt: { $gte: fromStart, $lte: toEnd } } },
+      { $match: workspaceMatch },
       {
         $group: {
           _id: {
@@ -46,12 +83,12 @@ export async function getUsageStats(from: Date, to: Date): Promise<UsageStats> {
       { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
     ]),
     UsageEvent.aggregate<{ _id: string; count: number }>([
-      { $match: { createdAt: { $gte: fromStart, $lte: toEnd } } },
+      { $match: workspaceMatch },
       { $group: { _id: '$action', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]),
     UsageEvent.aggregate<{ _id: mongoose.Types.ObjectId; count: number }>([
-      { $match: { createdAt: { $gte: fromStart, $lte: toEnd } } },
+      { $match: workspaceMatch },
       { $group: { _id: '$userId', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 20 },

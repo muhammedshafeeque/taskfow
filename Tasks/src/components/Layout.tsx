@@ -6,6 +6,7 @@ import { toAppPath } from '../lib/navigationUrl';
 import NotificationToast from './NotificationToast';
 import SuccessToast from './SuccessToast';
 import ConfirmModal from './ConfirmModal';
+import { taskflowAppSettingsHref } from '../lib/appSettingsHref';
 import { projectsApi, issuesApi, type Project, type Issue, getIssueKey } from '../lib/api';
 import { APP_VERSION } from '../appVersion';
 import {
@@ -22,6 +23,7 @@ import {
   VersionsIcon,
   TimesheetIcon,
   SettingsIcon,
+  AppHubSettingsIcon,
   SearchIcon,
   SunIcon,
   MoonIcon,
@@ -41,7 +43,9 @@ interface NavItem {
   end?: boolean;
 }
 
-function buildGlobalNav(user: { mustChangePassword?: boolean; permissions?: string[]; role?: string } | null): NavItem[] {
+function buildGlobalNav(
+  user: { mustChangePassword?: boolean; permissions?: string[]; role?: string; userType?: string; organizations?: { id: string }[] } | null
+): NavItem[] {
   const perms = user?.permissions ?? [];
   const nav: NavItem[] = [
     { to: '/', label: 'Dashboard', icon: <DashboardIcon />, end: true },
@@ -96,6 +100,9 @@ function buildGlobalNav(user: { mustChangePassword?: boolean; permissions?: stri
   if (has('taskflow.customer_portal.request.approve') || has('customer-requests:approve')) {
     nav.push({ to: '/admin/customer-requests', label: 'Customer Requests', icon: <IssuesIcon /> });
   }
+  if (user && 'userType' in user && user.userType === 'taskflow' && (user.organizations?.length ?? 0) > 0) {
+    nav.push({ to: '/settings/workspace', label: 'Workspace', icon: <AppHubSettingsIcon /> });
+  }
   nav.push({ to: '/profile', label: 'Profile', icon: <ProfileIcon /> });
   return nav;
 }
@@ -144,7 +151,7 @@ function projectNav(projectId: string, projectPermissions: string[], globalPermi
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user, logout, token } = useAuth();
+  const { user, logout, token, switchWorkspace } = useAuth();
   const {
     latestInboxMessage,
     latestPushNotification,
@@ -255,7 +262,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -414,7 +420,52 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="shrink-0 flex items-center justify-end gap-3 px-4 py-2 border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] shadow-[0_1px_0_var(--border-subtle)]">
+        <header className="shrink-0 flex flex-wrap items-center gap-2 sm:gap-3 px-4 py-2 border-b border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] shadow-[0_1px_0_var(--border-subtle)]">
+          <div className="relative min-w-0 flex-1 basis-full sm:basis-auto max-w-md">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => projectId && searchResults.length > 0 && setSearchOpen(true)}
+              placeholder={projectId ? 'Search by Ticket ID or title…' : 'Open a project to search issues'}
+              disabled={!projectId}
+              className="w-full px-3 py-1.5 pl-8 rounded-md bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] text-xs focus:bg-[color:var(--bg-surface)] focus:border-[color:var(--accent)] focus:ring-1 focus:ring-[color:var(--accent)]/40 outline-none disabled:opacity-60 disabled:cursor-not-allowed transition"
+            />
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)] pointer-events-none">
+              {searchLoading ? (
+                <span className="text-[10px]">…</span>
+              ) : (
+                <SearchIcon className="w-3.5 h-3.5" />
+              )}
+            </span>
+            {searchOpen && projectId && searchResults.length > 0 && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setSearchOpen(false)} />
+                <div className="absolute right-0 z-20 mt-1 w-full rounded-lg bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] shadow-[0_8px_24px_rgba(0,0,0,0.24)] max-h-64 overflow-y-auto">
+                  {searchResults.map((issue) => (
+                    <Link
+                      key={issue._id}
+                      to={`/projects/${projectId}/issues/${encodeURIComponent(getIssueKey(issue))}`}
+                      onClick={() => {
+                        setSearchOpen(false);
+                        setSearchQuery('');
+                        setSearchResults([]);
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-[color:var(--bg-surface)] text-left transition"
+                    >
+                      <span className="font-mono text-[11px] text-[color:var(--text-muted)] shrink-0">
+                        {getIssueKey(issue)}
+                      </span>
+                      <span className="text-xs text-[color:var(--text-primary)] truncate">
+                        {issue.title}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
           <button
             type="button"
             onClick={toggleFullScreen}
@@ -512,48 +563,44 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </>
             )}
           </div>
-          <div className="relative w-full max-w-xs">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => projectId && searchResults.length > 0 && setSearchOpen(true)}
-              placeholder={projectId ? 'Search by Ticket ID or title…' : 'Open a project to search issues'}
-              disabled={!projectId}
-              className="w-full px-3 py-1.5 pl-8 rounded-md bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] text-xs focus:bg-[color:var(--bg-surface)] focus:border-[color:var(--accent)] focus:ring-1 focus:ring-[color:var(--accent)]/40 outline-none disabled:opacity-60 disabled:cursor-not-allowed transition"
-            />
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)] pointer-events-none">
-              {searchLoading ? (
-                <span className="text-[10px]">…</span>
-              ) : (
-                <SearchIcon className="w-3.5 h-3.5" />
-              )}
-            </span>
-            {searchOpen && projectId && searchResults.length > 0 && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setSearchOpen(false)} />
-                <div className="absolute right-0 z-20 mt-1 w-full rounded-lg bg-[color:var(--bg-elevated)] border border-[color:var(--border-subtle)] shadow-[0_8px_24px_rgba(0,0,0,0.24)] max-h-64 overflow-y-auto">
-                  {searchResults.map((issue) => (
-                    <Link
-                      key={issue._id}
-                      to={`/projects/${projectId}/issues/${encodeURIComponent(getIssueKey(issue))}`}
-                      onClick={() => {
-                        setSearchOpen(false);
-                        setSearchQuery('');
-                        setSearchResults([]);
-                      }}
-                      className="flex items-center gap-2 px-3 py-2 hover:bg-[color:var(--bg-surface)] text-left transition"
-                    >
-                      <span className="font-mono text-[11px] text-[color:var(--text-muted)] shrink-0">
-                        {getIssueKey(issue)}
-                      </span>
-                      <span className="text-xs text-[color:var(--text-primary)] truncate">
-                        {issue.title}
-                      </span>
-                    </Link>
+            {user?.userType === 'taskflow' && (user.organizations?.length ?? 0) > 0 && (
+              <label className="flex min-w-0 max-w-[10rem] sm:max-w-[14rem] items-center gap-2 text-xs text-[color:var(--text-muted)]">
+                <span className="hidden xl:inline whitespace-nowrap">Workspace</span>
+                <select
+                  className="min-w-0 flex-1 truncate rounded-md border border-[color:var(--border-subtle)] bg-[color:var(--bg-surface)] px-2 py-1 text-xs text-[color:var(--text-primary)]"
+                  value={user.activeOrganizationId ?? user.organizations![0].id}
+                  onChange={async (e) => {
+                    const id = e.target.value;
+                    if (!id || id === user.activeOrganizationId) return;
+                    const r = await switchWorkspace(id);
+                    if (!r.ok) {
+                      window.alert(r.error ?? 'Could not switch workspace');
+                      return;
+                    }
+                    navigate('/projects', { replace: true });
+                  }}
+                  title="Switch workspace"
+                >
+                  {user.organizations?.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
                   ))}
-                </div>
-              </>
+                </select>
+              </label>
+            )}
+            {user?.userType === 'taskflow' && (
+              <button
+                type="button"
+                onClick={() => {
+                  window.open(taskflowAppSettingsHref(), '_blank', 'noopener,noreferrer');
+                }}
+                aria-label="Workspace hub and inbox window (opens in new tab)"
+                title="Workspace hub"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--accent)]/50 text-[color:var(--text-muted)] hover:bg-[color:var(--bg-surface)] hover:text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40 focus:ring-offset-0 transition shadow-[0_0_0_1px_var(--accent)_inset]"
+              >
+                <AppHubSettingsIcon className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
         </header>

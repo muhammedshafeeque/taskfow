@@ -18,7 +18,8 @@ interface DefectMetricsData {
 
 export default function DefectMetrics() {
   const { projectId } = useParams<{ projectId: string }>();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const workspaceKey = user?.activeOrganizationId ?? '';
   const [project, setProject] = useState<Project | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [data, setData] = useState<DefectMetricsData | null>(null);
@@ -34,7 +35,7 @@ export default function DefectMetrics() {
         setProjects(d.data ?? []);
       }
     });
-  }, [token]);
+  }, [token, workspaceKey]);
 
   useEffect(() => {
     if (projectId && token) {
@@ -61,7 +62,7 @@ export default function DefectMetrics() {
         setLoading(false);
         setError('Failed to load');
       });
-  }, [token, selectedProjectId]);
+  }, [token, selectedProjectId, workspaceKey]);
 
   useEffect(() => {
     if (projectId && !selectedProjectId) setSelectedProjectId(projectId);

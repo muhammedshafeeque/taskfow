@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ApiError } from '../../utils/ApiError';
 import * as notificationsService from './notifications.service';
+import * as preferenceService from './notificationPreference.service';
 
 export async function listNotifications(req: Request, res: Response): Promise<void> {
   const userId = req.user?.id;
@@ -40,5 +41,20 @@ export async function deleteNotification(req: Request, res: Response): Promise<v
   const deleted = await notificationsService.deleteForUser(req.params.id, userId);
   if (!deleted) throw new ApiError(404, 'Notification not found');
   res.status(200).json({ success: true, data: { deleted: true } });
+}
+
+export async function getNotificationPreferences(req: Request, res: Response): Promise<void> {
+  const userId = req.user?.id;
+  if (!userId) throw new ApiError(401, 'Unauthorized');
+  const data = await preferenceService.getPreferencesResponse(userId);
+  res.status(200).json({ success: true, data });
+}
+
+export async function updateNotificationPreferences(req: Request, res: Response): Promise<void> {
+  const userId = req.user?.id;
+  if (!userId) throw new ApiError(401, 'Unauthorized');
+  const body = req.body as { matrix?: Array<{ eventKey: string; methods: Record<string, boolean> }> };
+  const data = await preferenceService.updateUserPreferences(userId, { matrix: body.matrix ?? [] });
+  res.status(200).json({ success: true, data });
 }
 

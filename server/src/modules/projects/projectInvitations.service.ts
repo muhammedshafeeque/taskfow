@@ -14,9 +14,8 @@ import {
 import { mapLegacyProjectOrGlobalPermissions } from '../../shared/constants/legacyPermissionMap';
 import * as inboxService from '../inbox/inbox.service';
 import { sendProjectInviteEmail } from '../../services/email.service';
-import { sendPushToUser } from '../../services/push.service';
 import { env } from '../../config/env';
-import * as notificationsService from '../notifications/notifications.service';
+import { notifyUser } from '../notifications/notificationDispatch.service';
 
 const PROJECT_MEMBER_ROLE_NAME = 'Project Member';
 const PROJECT_LEAD_ROLE_NAME = 'Project Lead';
@@ -186,12 +185,14 @@ export async function inviteToProject(
     appUrl: env.appUrl,
   }).catch((err) => console.error('Failed to send project invite email:', err));
 
-  sendPushToUser(userIdStr, {
+  notifyUser({
+    userId: userIdStr,
+    eventKey: 'project_invitation',
     title: 'Project invitation',
     body: `You were invited to the project "${projectName}". Open your inbox to accept or decline.`,
-    url: `${env.appUrl}/inbox`,
-    data: { type: 'project_invitation', invitationId: invitation._id.toString() },
-  }).catch((err) => console.error('Failed to send push notification:', err));
+    link: `${env.appUrl}/inbox`,
+    metadata: { type: 'project_invitation', invitationId: invitation._id.toString() },
+  }).catch((err) => console.error('Failed to send project invitation notification:', err));
 
   return ProjectInvitation.findById(invitation._id)
     .populate('user', 'name email')
@@ -307,9 +308,9 @@ export async function acceptInvitation(invitationId: string, userId: string): Pr
     body: acceptanceBody,
     meta: { projectId, inviteeId, invitationId },
   });
-  notificationsService.createNotification({
+  notifyUser({
     userId: inviterId,
-    type: 'invitation_accepted',
+    eventKey: 'project_invitation_accepted',
     title: acceptanceTitle,
     body: acceptanceBody,
     link: `${env.appUrl}/projects/${projectId}/settings`,
@@ -331,9 +332,9 @@ export async function acceptInvitation(invitationId: string, userId: string): Pr
         body: superAdminBody,
         meta: { projectId, inviteeId, invitationId },
       });
-      notificationsService.createNotification({
+      notifyUser({
         userId: toUserId,
-        type: 'invitation_accepted',
+        eventKey: 'project_invitation_accepted',
         title: acceptanceTitle,
         body: superAdminBody,
         link: `${env.appUrl}/projects/${projectId}/settings`,

@@ -28,12 +28,16 @@ export interface PaginatedResult<T> {
 
 export async function create(
   input: CreateProjectBody,
-  creatorUserId: string
+  creatorUserId: string,
+  taskflowOrganizationId: string
 ): Promise<mongoose.Document> {
+  if (!mongoose.Types.ObjectId.isValid(taskflowOrganizationId)) {
+    throw new ApiError(400, 'Invalid workspace id');
+  }
   const key = input.key.toUpperCase();
-  const existing = await Project.findOne({ key }).lean();
+  const existing = await Project.findOne({ key, taskflowOrganizationId }).lean();
   if (existing) {
-    throw new ApiError(409, `Project with key "${key}" already exists`);
+    throw new ApiError(409, `Project with key "${key}" already exists in this workspace`);
   }
   const leadUserId = String(input.lead).trim();
   if (!mongoose.Types.ObjectId.isValid(leadUserId)) {
@@ -45,8 +49,12 @@ export async function create(
   }
 
   const config = input.templateId
-    ? await projectTemplatesService.getById(input.templateId)
+    ? await projectTemplatesService.getById(input.templateId, taskflowOrganizationId)
     : null;
+  const tid = input.templateId ? String(input.templateId).trim() : '';
+  if (tid && tid !== 'default' && !config) {
+    throw new ApiError(404, 'Template not found in this workspace');
+  }
   const template = config as { statuses?: unknown[]; issueTypes?: unknown[]; priorities?: unknown[] } | null;
   const defaultConfig = projectTemplatesService.getDefaultConfig();
   const statuses = (template?.statuses?.length ? template.statuses : defaultConfig.statuses) as typeof defaultConfig.statuses;
@@ -58,6 +66,7 @@ export async function create(
     key,
     description: input.description ?? '',
     lead: leadUserId,
+    taskflowOrganizationId,
     statuses,
     issueTypes,
     priorities,
@@ -111,19 +120,24 @@ export async function findAll(
 export async function findAllForUser(
   userId: string,
   _permissions: string[],
+  activeTaskflowOrganizationId: string,
   opts: PaginationOptions = { page: 1, limit: 20 }
 ): Promise<PaginatedResult<unknown>> {
   // Only show projects the user is a member of (accepted invitation or added as member).
   const userObjectId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
   const projectIds = await ProjectMember.find({ user: userObjectId }).distinct('project');
+  const orgFilter = {
+    _id: { $in: projectIds },
+    taskflowOrganizationId: activeTaskflowOrganizationId,
+  };
   const skip = (opts.page - 1) * opts.limit;
   const [data, total] = await Promise.all([
-    Project.find({ _id: { $in: projectIds } })
+    Project.find(orgFilter)
       .populate('lead', 'name email')
       .lean()
       .skip(skip)
       .limit(opts.limit),
-    Project.countDocuments({ _id: { $in: projectIds } }),
+    Project.countDocuments(orgFilter),
   ]);
 
   // Per-project permissions so the UI can show/hide Edit and Delete.
@@ -160,8 +174,13 @@ export async function findAllForUser(
   };
 }
 
-export async function findById(id: string): Promise<unknown | null> {
-  const project = await Project.findById(id).populate('lead', 'name email').lean();
+export async function findById(id: string, activeTaskflowOrganizationId: string): Promise<unknown | null> {
+  const project = await Project.findOne({
+    _id: id,
+    taskflowOrganizationId: activeTaskflowOrganizationId,
+  })
+    .populate('lead', 'name email')
+    .lean();
   if (!project) return null;
   const out = withProjectDefaults(project as Record<string, unknown>);
   const versions = out.versions as Array<{ id: string }> | undefined;
@@ -221,9 +240,13 @@ function withProjectDefaults(p: Record<string, unknown>): Record<string, unknown
 
 export async function saveAsTemplate(
   projectId: string,
-  input: { name: string; description?: string }
+  input: { name: string; description?: string },
+  activeTaskflowOrganizationId: string
 ): Promise<unknown | null> {
-  const project = await Project.findById(projectId).lean();
+  const project = await Project.findOne({
+    _id: projectId,
+    taskflowOrganizationId: activeTaskflowOrganizationId,
+  }).lean();
   if (!project) return null;
   const p = withProjectDefaults(project as Record<string, unknown>) as {
     statuses?: unknown[];
@@ -231,6 +254,7 @@ export async function saveAsTemplate(
     priorities?: unknown[];
   };
   return projectTemplatesService.createTemplateRecord({
+    taskflowOrganizationId: activeTaskflowOrganizationId,
     name: input.name.trim(),
     description: (input.description ?? '').trim(),
     statuses: (p.statuses ?? []) as unknown[],
@@ -241,11 +265,14 @@ export async function saveAsTemplate(
 
 export async function update(
   id: string,
-  input: UpdateProjectBody
+  input: UpdateProjectBody,
+  activeTaskflowOrganizationId: string
 ): Promise<unknown | null> {
   let previousLeadId: string | null = null;
   if (input.lead !== undefined) {
-    const existingProj = await Project.findById(id).select('lead').lean();
+    const existingProj = await Project.findOne({ _id: id, taskflowOrganizationId: activeTaskflowOrganizationId })
+      .select('lead')
+      .lean();
     if (existingProj && (existingProj as { lead?: unknown }).lead != null) {
       previousLeadId = String((existingProj as { lead: unknown }).lead);
     }
@@ -267,13 +294,20 @@ export async function update(
   }
   if (input.key !== undefined) {
     const key = input.key.toUpperCase();
-    const existing = await Project.findOne({ key, _id: { $ne: id } }).lean();
-    if (existing) throw new ApiError(409, `Project with key "${key}" already exists`);
+    const existing = await Project.findOne({
+      key,
+      taskflowOrganizationId: activeTaskflowOrganizationId,
+      _id: { $ne: id },
+    }).lean();
+    if (existing) throw new ApiError(409, `Project with key "${key}" already exists in this workspace`);
     updateData.key = key;
   }
   if (input.templateId !== undefined && String(input.templateId).trim() !== '') {
-    const config = await projectTemplatesService.getById(String(input.templateId).trim());
-    if (!config) throw new ApiError(404, 'Template not found');
+    const config = await projectTemplatesService.getById(
+      String(input.templateId).trim(),
+      activeTaskflowOrganizationId
+    );
+    if (!config) throw new ApiError(404, 'Template not found in this workspace');
     const template = config as { statuses?: unknown[]; issueTypes?: unknown[]; priorities?: unknown[] };
     const defaultConfig = projectTemplatesService.getDefaultConfig();
     updateData.statuses = (template.statuses?.length ? template.statuses : defaultConfig.statuses) as unknown[];
@@ -294,8 +328,8 @@ export async function update(
   if (input.environments !== undefined) updateData.environments = input.environments;
   if (input.releaseRules !== undefined) updateData.releaseRules = input.releaseRules;
 
-  const project = await Project.findByIdAndUpdate(
-    id,
+  const project = await Project.findOneAndUpdate(
+    { _id: id, taskflowOrganizationId: activeTaskflowOrganizationId },
     { $set: updateData },
     { new: true, runValidators: true }
   )
@@ -322,8 +356,8 @@ export async function update(
   return out;
 }
 
-export async function remove(id: string): Promise<boolean> {
-  const result = await Project.findByIdAndDelete(id);
+export async function remove(id: string, activeTaskflowOrganizationId: string): Promise<boolean> {
+  const result = await Project.findOneAndDelete({ _id: id, taskflowOrganizationId: activeTaskflowOrganizationId });
   return result != null;
 }
 
@@ -331,9 +365,13 @@ export async function releaseVersionToEnvironment(
   projectId: string,
   versionId: string,
   environmentId: string,
-  issueIds?: string[]
+  issueIds: string[] | undefined,
+  activeTaskflowOrganizationId: string
 ): Promise<{ releaseNotes: string; version: unknown; updatedCount: number }> {
-  const rawProject = await Project.findById(projectId).lean();
+  const rawProject = await Project.findOne({
+    _id: projectId,
+    taskflowOrganizationId: activeTaskflowOrganizationId,
+  }).lean();
   if (!rawProject) throw new ApiError(404, 'Project not found');
   const project = withProjectDefaults(rawProject as Record<string, unknown>) as Record<string, unknown>;
   const p = project as { versions?: Array<{ id: string; name: string }>; environments?: Array<{ id: string; name: string }>; releaseRules?: Array<{ environmentId: string; statusName: string }>; statuses?: Array<{ name: string }>; issueTypes?: Array<{ name: string; order: number }> };
@@ -425,7 +463,10 @@ export async function releaseVersionToEnvironment(
   }
 
   const nowIso = now.toISOString();
-  const raw = await Project.findById(projectId).lean();
+  const raw = await Project.findOne({
+    _id: projectId,
+    taskflowOrganizationId: activeTaskflowOrganizationId,
+  }).lean();
   if (!raw) throw new ApiError(404, 'Project not found');
   const versions = (raw as unknown as { versions: Array<Record<string, unknown>> }).versions.map((v) => {
     if (v.id !== versionId) return v;
@@ -435,8 +476,16 @@ export async function releaseVersionToEnvironment(
     notes[environmentId] = releaseNotes;
     return { ...v, status: 'released', releasedAtByEnvironment: releasedAt, releaseNotesByEnvironment: notes };
   });
-  await Project.findByIdAndUpdate(projectId, { $set: { versions } });
-  const updatedProject = await Project.findById(projectId).populate('lead', 'name email').lean();
+  await Project.findOneAndUpdate(
+    { _id: projectId, taskflowOrganizationId: activeTaskflowOrganizationId },
+    { $set: { versions } }
+  );
+  const updatedProject = await Project.findOne({
+    _id: projectId,
+    taskflowOrganizationId: activeTaskflowOrganizationId,
+  })
+    .populate('lead', 'name email')
+    .lean();
   const versionsList = (updatedProject as unknown as { versions?: Array<{ id: string }> })?.versions;
   const updatedVersion = versionsList?.find((v) => v.id === versionId) ?? version;
   const issueCount = await Issue.countDocuments({ project: projectId, fixVersion: versionId });

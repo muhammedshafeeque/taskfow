@@ -105,7 +105,7 @@ export const issueIdParamHandler = [
   validate(issueIdOnlyParamSchema.shape.params, 'params'),
 ];
 
-export async function getGlobalTimesheet(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
+export async function getGlobalTimesheet(req: Request & { user?: AuthPayload; activeOrganizationId?: string }, res: Response): Promise<void> {
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
 
@@ -114,7 +114,7 @@ export async function getGlobalTimesheet(req: Request & { user?: AuthPayload }, 
   const start = startDate ? new Date(startDate) : new Date(end);
   if (!startDate) start.setDate(end.getDate() - 6);
 
-  const data = await workLogsService.getGlobalTimesheet(userId, start, end);
+  const data = await workLogsService.getGlobalTimesheet(userId, start, end, req.activeOrganizationId);
   res.status(200).json({ success: true, data });
 }
 
@@ -123,12 +123,12 @@ export const globalTimesheetHandler = [
   asyncHandler(getGlobalTimesheet),
 ];
 
-export async function getTimesheetDetails(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
+export async function getTimesheetDetails(req: Request & { user?: AuthPayload; activeOrganizationId?: string }, res: Response): Promise<void> {
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
 
   const { userId: targetUserId, date } = req.query as { userId: string; date: string };
-  const data = await workLogsService.getTimesheetDetails(userId, targetUserId, date);
+  const data = await workLogsService.getTimesheetDetails(userId, targetUserId, date, req.activeOrganizationId);
   res.status(200).json({ success: true, data });
 }
 
@@ -137,7 +137,7 @@ export const timesheetDetailsHandler = [
   asyncHandler(getTimesheetDetails),
 ];
 
-export async function exportTimesheetExcel(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
+export async function exportTimesheetExcel(req: Request & { user?: AuthPayload; activeOrganizationId?: string }, res: Response): Promise<void> {
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
 
@@ -153,7 +153,7 @@ export async function exportTimesheetExcel(req: Request & { user?: AuthPayload }
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Timesheet', { views: [{ state: 'frozen', ySplit: 1 }] });
 
-  const data = await workLogsService.getTimesheetExportData(userId, start, end);
+  const data = await workLogsService.getTimesheetExportData(userId, start, end, req.activeOrganizationId);
 
   const headers = [
     'User',

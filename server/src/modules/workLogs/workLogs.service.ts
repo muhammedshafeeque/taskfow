@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { WorkLog, type IWorkLog } from './workLog.model';
-import { ProjectMember } from '../projects/projectMember.model';
+import { getProjectObjectIdsInWorkspace } from '../projects/workspaceProjectAccess';
 import { Issue } from '../issues/issue.model';
 import { notifyProjectRefresh } from '../../websocket';
 
@@ -209,15 +209,15 @@ export async function getProjectTimesheet(
 export async function getGlobalTimesheet(
   userId: string,
   start: Date,
-  end: Date
+  end: Date,
+  taskflowOrganizationId?: string | null
 ): Promise<TimesheetResult> {
   const startDay = new Date(start);
   startDay.setHours(0, 0, 0, 0);
   const endDay = new Date(end);
   endDay.setHours(23, 59, 59, 999);
 
-  const userObjectId = new mongoose.Types.ObjectId(userId);
-  const projectIds = await ProjectMember.find({ user: userObjectId }).distinct('project');
+  const projectIds = await getProjectObjectIdsInWorkspace(userId, taskflowOrganizationId);
   if (projectIds.length === 0) {
     return {
       byUser: [],
@@ -303,10 +303,10 @@ export interface TimesheetDetailItem {
 export async function getTimesheetDetails(
   requestingUserId: string,
   targetUserId: string,
-  dateStr: string
+  dateStr: string,
+  taskflowOrganizationId?: string | null
 ): Promise<TimesheetDetailItem[]> {
-  const userObjectId = new mongoose.Types.ObjectId(requestingUserId);
-  const projectIds = await ProjectMember.find({ user: userObjectId }).distinct('project');
+  const projectIds = await getProjectObjectIdsInWorkspace(requestingUserId, taskflowOrganizationId);
   if (projectIds.length === 0) return [];
 
   const targetDate = new Date(dateStr);
@@ -416,10 +416,10 @@ function formatMinutesForExport(minutes: number): string {
 export async function getTimesheetExportData(
   userId: string,
   start: Date,
-  end: Date
+  end: Date,
+  taskflowOrganizationId?: string | null
 ): Promise<TimesheetDetailItem[]> {
-  const userObjectId = new mongoose.Types.ObjectId(userId);
-  const projectIds = await ProjectMember.find({ user: userObjectId }).distinct('project');
+  const projectIds = await getProjectObjectIdsInWorkspace(userId, taskflowOrganizationId);
   if (projectIds.length === 0) return [];
 
   const startDay = new Date(start);

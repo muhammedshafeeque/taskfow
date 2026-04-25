@@ -7,11 +7,10 @@ import * as issueHistoryService from './issueHistory.service';
 import type { CreateIssueBody, UpdateIssueBody, ListIssuesQuery } from './issue.validation';
 import type { PaginationOptions, PaginatedResult } from '../projects/projects.service';
 import { parseJql } from './jqlParser';
-import { sendPushToUser } from '../../services/push.service';
-import { notifyPush, notifyProjectRefresh } from '../../websocket';
+import { notifyProjectRefresh } from '../../websocket';
 import { env } from '../../config/env';
-import * as notificationsService from '../notifications/notifications.service';
 import * as watchersService from '../watchers/watchers.service';
+import { notifyUser, appUrl } from '../notifications/notificationDispatch.service';
 import { getClosedStatusNamesForProject, getClosedStatusNamesFromStatuses } from '../projects/statusClassification';
 
 const DEFAULT_STATUS = 'Backlog';
@@ -425,16 +424,14 @@ export async function update(
           url: issueUrl,
           data: { type: 'issue_assigned', issueId: id, issueKey, projectId },
         };
-        notificationsService.createNotification({
+        notifyUser({
           userId: newAssigneeId,
-          type: 'issue_assigned',
+          eventKey: 'task_assigned',
           title: payload.title,
           body: payload.body,
           link: issueUrl,
           metadata: payload.data,
         }).catch(() => {});
-        sendPushToUser(newAssigneeId, payload).catch((err) => console.error('Push failed:', err));
-        notifyPush(newAssigneeId, payload);
       }
     }
 
@@ -448,16 +445,14 @@ export async function update(
           url: issueUrl,
           data: { type: 'issue_unassigned', issueId: id, issueKey, projectId },
         };
-        notificationsService.createNotification({
+        notifyUser({
           userId: oldAssigneeId,
-          type: 'issue_unassigned',
+          eventKey: 'task_unassigned',
           title: payload.title,
           body: payload.body,
           link: issueUrl,
           metadata: payload.data,
         }).catch(() => {});
-        sendPushToUser(oldAssigneeId, payload).catch((err) => console.error('Push failed:', err));
-        notifyPush(oldAssigneeId, payload);
       }
     }
 
@@ -500,8 +495,14 @@ export async function update(
       };
       const notifyClosed = (userId: string) => {
         if (userId !== authorId) {
-          sendPushToUser(userId, payload).catch((err) => console.error('Push failed:', err));
-          notifyPush(userId, payload);
+          notifyUser({
+            userId,
+            eventKey: 'task_status_changed',
+            title: payload.title,
+            body: payload.body,
+            link: appUrl(payload.url),
+            metadata: payload.data,
+          }).catch(() => {});
         }
       };
       if (assigneeId) notifyClosed(assigneeId);

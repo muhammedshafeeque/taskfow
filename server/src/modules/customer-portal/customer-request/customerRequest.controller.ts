@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import type { AuthPayload } from '../../../types/express';
 import { asyncHandler } from '../../../utils/asyncHandler';
 import { validate } from '../../../middleware/validate';
 import {
@@ -65,42 +66,47 @@ async function orgAdminRejectHandler(req: Request, res: Response): Promise<void>
 }
 
 // TF Admin: List pending TF approval
-async function listPendingTfApprovalHandler(req: Request, res: Response): Promise<void> {
+async function listPendingTfApprovalHandler(req: Request & { user?: AuthPayload; activeOrganizationId?: string }, res: Response): Promise<void> {
   const page = parseInt(String(req.query.page ?? '1'), 10);
   const limit = parseInt(String(req.query.limit ?? '20'), 10);
-  const result = await customerRequestService.listPendingTfApproval({ page, limit });
+  const result = await customerRequestService.listPendingTfApproval({ page, limit }, req.activeOrganizationId);
   res.status(200).json({ success: true, data: result });
 }
 
 // TF Admin: List ALL requests (with optional status/org filter)
-async function listAllRequestsTfHandler(req: Request, res: Response): Promise<void> {
+async function listAllRequestsTfHandler(req: Request & { user?: AuthPayload; activeOrganizationId?: string }, res: Response): Promise<void> {
   const page = parseInt(String(req.query.page ?? '1'), 10);
   const limit = parseInt(String(req.query.limit ?? '50'), 10);
   const status = req.query.status ? String(req.query.status) : undefined;
   const orgId = req.query.orgId ? String(req.query.orgId) : undefined;
-  const result = await customerRequestService.listAllRequestsTf({ status, orgId, page, limit });
+  const result = await customerRequestService.listAllRequestsTf(
+    { status, orgId, page, limit },
+    req.activeOrganizationId
+  );
   res.status(200).json({ success: true, data: result });
 }
 
 // TF Admin: Approve a request and create issue
-async function tfApproveHandler(req: Request, res: Response): Promise<void> {
+async function tfApproveHandler(req: Request & { user?: AuthPayload; activeOrganizationId?: string }, res: Response): Promise<void> {
   const { note } = req.body;
   const result = await customerRequestService.tfApprove(
     req.params.requestId,
     req.user!.id,
-    note
+    note,
+    req.activeOrganizationId
   );
   res.status(200).json({ success: true, data: { request: result } });
 }
 
 // TF Admin: Reject a request
-async function tfRejectHandler(req: Request, res: Response): Promise<void> {
+async function tfRejectHandler(req: Request & { user?: AuthPayload; activeOrganizationId?: string }, res: Response): Promise<void> {
   const { note, reason } = req.body;
   const result = await customerRequestService.tfReject(
     req.params.requestId,
     req.user!.id,
     note,
-    reason
+    reason,
+    req.activeOrganizationId
   );
   res.status(200).json({ success: true, data: { request: result } });
 }

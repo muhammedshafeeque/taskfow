@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import type { AuthPayload } from '../../types/express';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { validate } from '../../middleware/validate';
 import { usersValidation } from './users.validation';
@@ -8,10 +9,10 @@ import { ApiError } from '../../utils/ApiError';
 import { userHasPermission } from '../../shared/constants/legacyPermissionMap';
 import { TASK_FLOW_PERMISSIONS } from '../../shared/constants/permissions';
 
-export async function getUsers(req: Request, res: Response): Promise<void> {
+export async function getUsers(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
   const page = parseInt(String(req.query.page), 10) || 1;
   const limit = Math.min(parseInt(String(req.query.limit), 10) || 20, 100);
-  const result = await usersService.findAll({ page, limit });
+  const result = await usersService.findAll({ page, limit }, req.activeOrganizationId);
   res.status(200).json({ success: true, data: result });
 }
 
@@ -31,9 +32,11 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
   res.status(200).json({ success: true, data: user });
 }
 
-export async function inviteUser(req: Request, res: Response): Promise<void> {
-  const data = await usersService.invite(req.body);
-  res.status(201).json({ success: true, data });
+export async function inviteUser(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
+  const inviterId = req.user?.id;
+  if (!inviterId) throw new ApiError(401, 'Unauthorized');
+  const result = await usersService.invite(req.body, req.activeOrganizationId, inviterId);
+  res.status(result.status).json({ success: true, inviteKind: result.inviteKind, data: result.user });
 }
 
 export async function updatePermissionOverrides(req: Request, res: Response): Promise<void> {

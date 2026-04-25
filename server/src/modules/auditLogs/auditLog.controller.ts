@@ -4,7 +4,7 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { ApiError } from '../../utils/ApiError';
 import * as auditLogService from './auditLog.service';
 
-export async function listAuditLogs(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
+export async function listAuditLogs(req: Request & { user?: AuthPayload; activeOrganizationId?: string }, res: Response): Promise<void> {
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
   if (req.user?.role !== 'admin') {
@@ -20,7 +20,8 @@ export async function listAuditLogs(req: Request & { user?: AuthPayload }, res: 
 
   const result = await auditLogService.findAll(
     { user, action, resourceType, projectId },
-    { page, limit }
+    { page, limit },
+    req.activeOrganizationId
   );
   res.status(200).json({ success: true, data: result });
 }

@@ -7,22 +7,36 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { authApi, type AuthUser } from '../lib/api';
+import { authApi, organizationsApi, TASKFLOW_ACTIVE_ORG_STORAGE_KEY, type AuthUser } from '../lib/api';
 
 const ACCESS_KEY = 'pm_access_token';
 const REFRESH_KEY = 'pm_refresh_token';
 const USER_KEY = 'pm_user';
+
+function persistTaskflowWorkspace(user: AuthUser | null) {
+  try {
+    if (user?.userType === 'taskflow' && user.activeOrganizationId) {
+      localStorage.setItem(TASKFLOW_ACTIVE_ORG_STORAGE_KEY, user.activeOrganizationId);
+    } else {
+      localStorage.removeItem(TASKFLOW_ACTIVE_ORG_STORAGE_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string; userType?: string }>;
+  register: (name: string, email: string, password: string) => Promise<{ ok: boolean; error?: string; userType?: string }>;
   microsoftSso: (code: string, redirectUri?: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
   updateUser: (user: AuthUser) => void;
   setAccessToken: (accessToken: string) => void;
   refreshUser: () => Promise<{ ok: boolean; error?: string }>;
+  switchWorkspace: (organizationId: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -45,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TASKFLOW_ACTIVE_ORG_STORAGE_KEY);
   }, []);
 
   useEffect(() => {
@@ -56,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUser = useCallback((next: AuthUser) => {
     setUser(next);
     localStorage.setItem(USER_KEY, JSON.stringify(next));
+    persistTaskflowWorkspace(next);
   }, []);
 
   const setAccessToken = useCallback((accessToken: string) => {
@@ -92,11 +108,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!res.success || !res.data) {
         return { ok: false, error: (res as { message?: string }).message ?? 'Login failed' };
       }
-      setUser(res.data.user);
+      const nextUser = res.data.user as AuthUser;
+      setUser(nextUser);
       setToken(res.data.tokens.accessToken);
       localStorage.setItem(ACCESS_KEY, res.data.tokens.accessToken);
       localStorage.setItem(REFRESH_KEY, res.data.tokens.refreshToken);
-      localStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
+      localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+      persistTaskflowWorkspace(nextUser);
+      return { ok: true, userType: res.data.user.userType };
+    },
+    []
+  );
+
+  const register = useCallback(
+    async (name: string, email: string, password: string) => {
+      const res = await authApi.register(name, email, password);
+      if (!res.success || !res.data) {
+        return { ok: false, error: (res as { message?: string }).message ?? 'Registration failed' };
+      }
+      const nextUser = res.data.user as AuthUser;
+      setUser(nextUser);
+      setToken(res.data.tokens.accessToken);
+      localStorage.setItem(ACCESS_KEY, res.data.tokens.accessToken);
+      localStorage.setItem(REFRESH_KEY, res.data.tokens.refreshToken);
+      localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+      persistTaskflowWorkspace(nextUser);
       return { ok: true, userType: res.data.user.userType };
     },
     []
@@ -107,11 +143,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!res.success || !res.data) {
       return { ok: false, error: (res as { message?: string }).message ?? 'SSO login failed' };
     }
-    setUser(res.data.user);
+    const nextUser = res.data.user as AuthUser;
+    setUser(nextUser);
     setToken(res.data.tokens.accessToken);
     localStorage.setItem(ACCESS_KEY, res.data.tokens.accessToken);
     localStorage.setItem(REFRESH_KEY, res.data.tokens.refreshToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
+    localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+    persistTaskflowWorkspace(nextUser);
+    return { ok: true };
+  }, []);
+
+  const switchWorkspace = useCallback(async (organizationId: string) => {
+    const accessToken = localStorage.getItem(ACCESS_KEY);
+    if (!accessToken) return { ok: false, error: 'Not authenticated' };
+    const res = await organizationsApi.switch(organizationId, accessToken);
+    if (!res.success || !res.data) {
+      return { ok: false, error: (res as { message?: string }).message ?? 'Switch workspace failed' };
+    }
+    const nextUser = res.data.user as AuthUser;
+    setUser(nextUser);
+    setToken(res.data.tokens.accessToken);
+    localStorage.setItem(ACCESS_KEY, res.data.tokens.accessToken);
+    localStorage.setItem(REFRESH_KEY, res.data.tokens.refreshToken);
+    localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+    persistTaskflowWorkspace(nextUser);
     return { ok: true };
   }, []);
 
@@ -121,13 +176,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       loading,
       login,
+      register,
       microsoftSso,
       logout,
       updateUser,
       setAccessToken,
       refreshUser,
+      switchWorkspace,
     }),
-    [user, token, loading, login, microsoftSso, logout, updateUser, setAccessToken, refreshUser]
+    [user, token, loading, login, register, microsoftSso, logout, updateUser, setAccessToken, refreshUser, switchWorkspace]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

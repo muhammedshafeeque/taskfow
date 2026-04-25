@@ -38,6 +38,7 @@ function truncateTitle(title: string, max = 56): string {
 
 export default function PerformanceReport() {
   const { token, user } = useAuth();
+  const workspaceKey = user?.activeOrganizationId ?? '';
   const rangeInit = useMemo(() => defaultDateRange(), []);
   const [from, setFrom] = useState(rangeInit.from);
   const [to, setTo] = useState(rangeInit.to);
@@ -86,7 +87,7 @@ export default function PerformanceReport() {
         setProjects(d.data ?? []);
       }
     });
-  }, [token]);
+  }, [token, workspaceKey]);
 
   const reportParams = useMemo(
     () => ({
@@ -120,7 +121,7 @@ export default function PerformanceReport() {
         setReport(null);
         setError('Failed to load report');
       });
-  }, [token, reportParams]);
+  }, [token, reportParams, workspaceKey]);
 
   async function handleExportExcel() {
     if (!token || selectedIds.length === 0 || !report?.rows.length) return;

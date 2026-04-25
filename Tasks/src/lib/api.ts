@@ -1,6 +1,19 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 export const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:5000';
 
+/** Persisted active TaskFlow workspace; sent as `X-Organization-Id` on API requests. */
+export const TASKFLOW_ACTIVE_ORG_STORAGE_KEY = 'taskflow_active_organization_id';
+
+function taskflowOrgHeaders(): Record<string, string> {
+  try {
+    const id = localStorage.getItem(TASKFLOW_ACTIVE_ORG_STORAGE_KEY);
+    if (id?.trim()) return { 'X-Organization-Id': id.trim() };
+  } catch {
+    /* ignore */
+  }
+  return {};
+}
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -14,6 +27,7 @@ async function request<T>(
   const { token, ...init } = options;
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
+    ...taskflowOrgHeaders(),
     ...(init.headers as Record<string, string>),
   };
   if (token) {
@@ -59,7 +73,9 @@ export async function uploadFile(file: File, token?: string): Promise<ApiRespons
   const formData = new FormData();
   formData.append('file', file);
 
-  const headers: HeadersInit = {};
+  const headers: HeadersInit = {
+    ...taskflowOrgHeaders(),
+  };
   if (token) {
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
@@ -83,6 +99,14 @@ export async function uploadFile(file: File, token?: string): Promise<ApiRespons
 }
 
 /* Auth */
+export interface TaskflowOrganizationSummary {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+  status?: string;
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -96,6 +120,9 @@ export interface AuthUser {
   permissions?: string[];
   mustChangePassword?: boolean;
   createdAt?: string;
+  /** Active TaskFlow workspace (JWT + UI). */
+  activeOrganizationId?: string;
+  organizations?: TaskflowOrganizationSummary[];
   // Customer fields
   orgId?: string;
   isOrgAdmin?: boolean;
@@ -107,7 +134,16 @@ export interface AuthData {
   tokens: { accessToken: string; refreshToken: string; expiresIn: string };
 }
 
+export interface PublicAuthConfig {
+  signupEnabled: boolean;
+  emailPasswordEnabled: boolean;
+  providers: { google: boolean; microsoft: boolean };
+}
+
 export const authApi = {
+  publicConfig: () => api.get<PublicAuthConfig>('/auth/public-config'),
+  register: (name: string, email: string, password: string) =>
+    api.post<AuthData>('/auth/register', { name, email, password }),
   login: (email: string, password: string) =>
     api.post<AuthData>('/auth/login', { email, password }),
 
@@ -138,6 +174,48 @@ export const authApi = {
 
   resetPassword: (token: string, newPassword: string) =>
     api.post<AuthData>('/auth/reset-password', { token, newPassword }),
+};
+
+export interface TaskflowOrganizationDetail {
+  organization: {
+    _id: string;
+    id?: string;
+    name: string;
+    slug: string;
+    description?: string;
+    status?: string;
+    createdAt?: string;
+  };
+  members: Array<{
+    _id: string;
+    role: string;
+    status: string;
+    user?: { _id: string; name: string; email: string };
+  }>;
+}
+
+export const organizationsApi = {
+  list: (token: string) =>
+    api.get<{ organizations: TaskflowOrganizationSummary[] }>('/organizations', token),
+  create: (body: { name: string; description?: string }, token: string) =>
+    api.post<{ organization: unknown }>('/organizations', body, token),
+  get: (id: string, token: string) =>
+    api.get<TaskflowOrganizationDetail>(`/organizations/${id}`, token),
+  switch: (id: string, token: string) =>
+    api.post<AuthData>(`/organizations/${id}/switch`, {}, token),
+  listMembers: (id: string, token: string) =>
+    api.get<{ members: TaskflowOrganizationDetail['members'] }>(`/organizations/${id}/members`, token),
+  inviteMember: (id: string, body: { email: string; role?: 'org_admin' | 'org_member' }, token: string) =>
+    api.post<{ member: unknown }>(`/organizations/${id}/members`, body, token),
+  updateMemberRole: (orgId: string, userId: string, body: { role: 'org_admin' | 'org_member' }, token: string) =>
+    api.patch<{ member: unknown }>(`/organizations/${orgId}/members/${userId}`, body, token),
+  update: (
+    id: string,
+    body: { name?: string; description?: string; status?: 'active' | 'archived' },
+    token: string
+  ) => api.patch<{ organization: unknown }>(`/organizations/${id}`, body, token),
+  removeMember: (orgId: string, userId: string, token: string) =>
+    api.delete<{ removed: boolean }>(`/organizations/${orgId}/members/${userId}`, token),
 };
 
 /* Projects */
@@ -293,20 +371,52 @@ export interface InAppNotification {
   createdAt: string;
 }
 
+export type NotificationMethod =
+  | 'in_app'
+  | 'push'
+  | 'email'
+  | 'sms'
+  | 'whatsapp'
+  | 'discord'
+  | 'slack'
+  | 'teams'
+  | 'telegram';
+export type NotificationMethodAvailability = Record<NotificationMethod, { enabled: boolean; reason?: string }>;
+export type NotificationPreferenceRow = {
+  eventKey: string;
+  methods: Record<NotificationMethod, boolean>;
+};
+export type NotificationEventDescriptor = { key: string; label: string; description: string };
+
 export const notificationsApi = {
   list: (params: { page?: number; limit?: number; unreadOnly?: boolean }, token: string) => {
     const q = new URLSearchParams();
     if (params.page) q.set('page', String(params.page));
     if (params.limit) q.set('limit', String(params.limit));
     if (params.unreadOnly) q.set('unreadOnly', 'true');
-    return api.get<Paginated<InAppNotification>>(`/inbox/notifications?${q.toString()}`, token);
+    return api.get<Paginated<InAppNotification>>(`/notifications?${q.toString()}`, token);
   },
   unreadCount: (token: string) =>
-    api.get<{ unread: number }>(`/inbox/notifications/unread-count`, token),
+    api.get<{ unread: number }>(`/notifications/unread-count`, token),
   markRead: (id: string, token: string) =>
-    api.patch<InAppNotification>(`/inbox/notifications/${id}/read`, {}, token),
+    api.patch<InAppNotification>(`/notifications/${id}/read`, {}, token),
   markAllRead: (token: string) =>
-    api.patch<{ updated: number }>(`/inbox/notifications/read-all`, {}, token),
+    api.patch<{ updated: number }>(`/notifications/read-all`, {}, token),
+  getPreferences: (token: string) =>
+    api.get<{
+      availableMethods: NotificationMethodAvailability;
+      events: NotificationEventDescriptor[];
+      matrix: NotificationPreferenceRow[];
+    }>(`/notifications/preferences`, token),
+  updatePreferences: (
+    matrix: Array<{ eventKey: string; methods: Partial<Record<NotificationMethod, boolean>> }>,
+    token: string
+  ) =>
+    api.put<{
+      availableMethods: NotificationMethodAvailability;
+      events: NotificationEventDescriptor[];
+      matrix: NotificationPreferenceRow[];
+    }>(`/notifications/preferences`, { matrix }, token),
 };
 
 export const projectsApi = {
@@ -761,10 +871,10 @@ export const dashboardApi = {
     q.set('to', params.to);
     if (params.userIds.length) q.set('userIds', params.userIds.join(','));
     if (params.projectIds?.length) q.set('projectIds', params.projectIds.join(','));
-    const headers: HeadersInit = {};
-    if (token) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-    }
+    const headers: HeadersInit = {
+      ...taskflowOrgHeaders(),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
     const res = await fetch(`${API_BASE}/dashboard/performance-report/export?${q}`, { method: 'GET', headers });
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
@@ -825,6 +935,11 @@ export interface InviteUserBody {
   roleId: string;
 }
 
+/** Successful `/auth/users/invite` response includes `inviteKind` alongside `data`. */
+export type InviteUserApiResponse = ApiResponse<User> & {
+  inviteKind?: 'new_user' | 'workspace_join';
+};
+
 export interface UpdateUserBody {
   name?: string;
   roleId?: string | null;
@@ -838,7 +953,7 @@ export const usersApi = {
   update: (id: string, body: UpdateUserBody, token: string) =>
     api.patch<User>(`/auth/users/${id}`, body, token),
   invite: (body: InviteUserBody, token: string) =>
-    api.post<User>('/auth/users/invite', body, token),
+    api.post<User>('/auth/users/invite', body, token) as Promise<InviteUserApiResponse>,
   updatePermissions: (id: string, overrides: { granted: string[]; revoked: string[] }, token: string) =>
     api.patch<User>(`/auth/users/${id}/permissions`, overrides, token),
 };
@@ -1086,10 +1201,10 @@ export const issuesApi = {
     token: string
   ): Promise<{ success: boolean; message?: string }> => {
     const q = new URLSearchParams(params).toString();
-    const headers: HeadersInit = {};
-    if (token) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-    }
+    const headers: HeadersInit = {
+      ...taskflowOrgHeaders(),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
     const res = await fetch(`${API_BASE}/issues/export?${q}`, { method: 'GET', headers });
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
@@ -1256,10 +1371,10 @@ export const timesheetApi = {
   /** Download detailed timesheet as Excel file. */
   downloadExcel: async (startDate: string, endDate: string, token: string): Promise<{ success: boolean; message?: string }> => {
     const q = new URLSearchParams({ startDate, endDate }).toString();
-    const headers: HeadersInit = {};
-    if (token) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-    }
+    const headers: HeadersInit = {
+      ...taskflowOrgHeaders(),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
     const res = await fetch(`${API_BASE}/timesheet/export?${q}`, { method: 'GET', headers });
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
@@ -1500,6 +1615,7 @@ export interface CustomerOrg {
   _id: string;
   name: string;
   slug: string;
+  taskflowOrganizationId?: string;
   contactEmail: string;
   contactPhone?: string;
   description?: string;
@@ -1625,4 +1741,19 @@ export const adminCustomerApi = {
     api.post(`/customer/requests/${id}/tf-approve`, { note }, token),
   rejectRequest: (id: string, reason: string, note: string | undefined, token: string) =>
     api.post(`/customer/requests/${id}/tf-reject`, { reason, note }, token),
+};
+
+export interface AdminIntegrationConfigItem {
+  id: string;
+  label: string;
+  enabled: boolean;
+  configured: boolean;
+  envKeys: string[];
+  missingKeys: string[];
+  notes?: string;
+}
+
+export const adminSystemApi = {
+  getIntegrationsConfig: (token: string) =>
+    api.get<{ items: AdminIntegrationConfigItem[]; sampleEnvKeys: string[] }>('/admin/integrations-config', token),
 };

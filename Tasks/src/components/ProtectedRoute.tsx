@@ -1,7 +1,9 @@
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from './Layout';
-export default function ProtectedRoute() {
+
+/** Auth + customer check only; renders child routes (e.g. app shell or standalone pages). */
+export function TaskflowAuthGuard() {
   const { token, user, loading } = useAuth();
   const location = useLocation();
 
@@ -19,7 +21,11 @@ export default function ProtectedRoute() {
 
   if (user?.userType === 'customer') return <Navigate to="/portal" replace />;
 
+  return <Outlet />;
+}
 
+/** Main TaskFlow chrome: sidebar + header + outlet. */
+export default function TaskflowAppShell() {
   return (
     <Layout>
       <Outlet />

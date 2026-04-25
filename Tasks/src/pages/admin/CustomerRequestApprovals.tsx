@@ -262,7 +262,7 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 export default function CustomerRequestApprovals() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [requests, setRequests]       = useState<CustomerRequest[]>([]);
   const [total, setTotal]             = useState(0);
   const [loading, setLoading]         = useState(true);
@@ -288,7 +288,7 @@ export default function CustomerRequestApprovals() {
       });
   }
 
-  useEffect(() => { loadRequests(); }, [token, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadRequests(); }, [token, statusFilter, user?.activeOrganizationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleDone() {
     setSelectedRequest(null);

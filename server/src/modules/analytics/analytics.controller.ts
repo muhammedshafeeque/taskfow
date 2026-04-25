@@ -5,7 +5,7 @@ import { userHasPermission } from '../../shared/constants/legacyPermissionMap';
 import { TASK_FLOW_PERMISSIONS } from '../../shared/constants/permissions';
 import * as analyticsService from './analytics.service';
 
-export async function getUsage(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
+export async function getUsage(req: Request & { user?: AuthPayload; activeOrganizationId?: string }, res: Response): Promise<void> {
   if (!req.user) throw new ApiError(401, 'Unauthorized');
   if (
     req.user.role !== 'admin' &&
@@ -24,6 +24,6 @@ export async function getUsage(req: Request & { user?: AuthPayload }, res: Respo
     throw new ApiError(400, 'Invalid date range');
   }
 
-  const data = await analyticsService.getUsageStats(from, to);
+  const data = await analyticsService.getUsageStats(from, to, req.activeOrganizationId);
   res.status(200).json({ success: true, data });
 }

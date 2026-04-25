@@ -30,6 +30,7 @@ import { customerUserRoutes } from '../modules/customer-portal/customer-user/cus
 import { customerProjectMappingRoutes } from '../modules/customer-portal/customer-project-mapping/customerProjectMapping.routes';
 import { customerRequestRoutes } from '../modules/customer-portal/customer-request/customerRequest.routes';
 import { customerAuthRoutes } from '../modules/customer-portal/customer-auth/customerAuth.routes';
+import { organizationsRoutes } from '../modules/organizations/organizations.routes';
 
 const router = Router();
 
@@ -41,6 +42,7 @@ router.get('/health', (_req: Request, res: Response) => {
 });
 
 router.use('/auth', authRoutes);
+router.use('/organizations', organizationsRoutes);
 router.use('/auth/users', usersRoutes);
 router.use('/auth/roles', rolesRoutes);
 router.get('/timesheet/details', authMiddleware, ...timesheetDetailsHandler);

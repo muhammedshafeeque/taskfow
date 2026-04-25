@@ -9,6 +9,8 @@ import {
   markNotificationRead,
   getUnreadCount,
   deleteNotification,
+  getNotificationPreferences,
+  updateNotificationPreferences,
 } from './notifications.controller';
 
 const router = Router();
@@ -41,6 +43,8 @@ router.delete(
   requirePermission(TASK_FLOW_PERMISSIONS.INBOX.NOTIFICATION.DELETE),
   asyncHandler(deleteNotification)
 );
+router.get('/preferences', asyncHandler(getNotificationPreferences));
+router.put('/preferences', asyncHandler(updateNotificationPreferences));
 
 export const notificationsRoutes = router;
 

@@ -9,7 +9,7 @@ import { formatMinutesForExport } from '../workLogs/workLogs.service';
 export async function getDashboardStats(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
-  const data = await dashboardService.getStatsForUser(userId);
+  const data = await dashboardService.getStatsForUser(userId, req.activeOrganizationId);
   res.status(200).json({ success: true, data });
 }
 
@@ -17,7 +17,7 @@ export async function getWorkloadStats(req: Request & { user?: AuthPayload }, re
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
   const projectId = req.query.projectId as string | undefined;
-  const data = await dashboardService.getWorkloadStats(userId, projectId);
+  const data = await dashboardService.getWorkloadStats(userId, projectId, undefined, req.activeOrganizationId);
   res.status(200).json({ success: true, data });
 }
 
@@ -32,7 +32,7 @@ export async function getExecutiveStats(req: Request & { user?: AuthPayload }, r
 export async function getPortfolioStats(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
-  const data = await dashboardService.getPortfolioStats(userId);
+  const data = await dashboardService.getPortfolioStats(userId, req.activeOrganizationId);
   res.status(200).json({ success: true, data });
 }
 
@@ -40,7 +40,7 @@ export async function getDefectMetrics(req: Request & { user?: AuthPayload }, re
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
   const projectId = req.query.projectId as string | undefined;
-  const data = await dashboardService.getDefectMetrics(userId, projectId);
+  const data = await dashboardService.getDefectMetrics(userId, projectId, undefined, req.activeOrganizationId);
   res.status(200).json({ success: true, data });
 }
 
@@ -48,7 +48,7 @@ export async function getEstimatesStats(req: Request & { user?: AuthPayload }, r
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
   const projectId = req.query.projectId as string | undefined;
-  const data = await dashboardService.getEstimatesStats(userId, projectId);
+  const data = await dashboardService.getEstimatesStats(userId, projectId, req.activeOrganizationId);
   res.status(200).json({ success: true, data });
 }
 
@@ -57,7 +57,7 @@ export async function getProjectMetrics(req: Request & { user?: AuthPayload }, r
   if (!userId) throw new ApiError(401, 'Unauthorized');
   const projectId = req.query.projectId as string | undefined;
   if (!projectId) throw new ApiError(400, 'projectId is required');
-  const data = await dashboardService.getProjectMetrics(projectId, userId);
+  const data = await dashboardService.getProjectMetrics(projectId, userId, req.activeOrganizationId);
   if (data === null) throw new ApiError(403, 'Access denied to this project');
   res.status(200).json({ success: true, data });
 }
@@ -74,14 +74,14 @@ export async function getCostUsage(req: Request & { user?: AuthPayload }, res: R
   if (isNaN(from.getTime()) || isNaN(to.getTime())) {
     throw new ApiError(400, 'Invalid date range');
   }
-  const data = await dashboardService.getCostUsageReport(userId, projectId, from, to);
+  const data = await dashboardService.getCostUsageReport(userId, projectId, from, to, req.activeOrganizationId);
   res.status(200).json({ success: true, data });
 }
 
 export async function getPerformanceReportUsers(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
   const userId = req.user?.id;
   if (!userId) throw new ApiError(401, 'Unauthorized');
-  const users = await dashboardService.getPerformanceReportTeammates(userId);
+  const users = await dashboardService.getPerformanceReportTeammates(userId, req.activeOrganizationId);
   res.status(200).json({ success: true, data: { users } });
 }
 
@@ -126,7 +126,14 @@ function parsePerformanceReportQuery(req: Request & { user?: AuthPayload }): {
 
 export async function getPerformanceReport(req: Request & { user?: AuthPayload }, res: Response): Promise<void> {
   const { userId, from, to, targetUserIds, filterProjectIds } = parsePerformanceReportQuery(req);
-  const data = await dashboardService.getPerformanceReport(userId, targetUserIds, from, to, filterProjectIds);
+  const data = await dashboardService.getPerformanceReport(
+    userId,
+    targetUserIds,
+    from,
+    to,
+    filterProjectIds,
+    req.activeOrganizationId
+  );
   res.status(200).json({ success: true, data });
 }
 
@@ -135,7 +142,14 @@ export async function exportPerformanceReportExcel(
   res: Response
 ): Promise<void> {
   const { userId, from, to, targetUserIds, filterProjectIds } = parsePerformanceReportQuery(req);
-  const data = await dashboardService.getPerformanceReport(userId, targetUserIds, from, to, filterProjectIds);
+  const data = await dashboardService.getPerformanceReport(
+    userId,
+    targetUserIds,
+    from,
+    to,
+    filterProjectIds,
+    req.activeOrganizationId
+  );
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Performance report');

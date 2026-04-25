@@ -16,6 +16,8 @@ export interface IReportConfig {
 
 export interface IReport extends Document {
   user: mongoose.Types.ObjectId;
+  /** TaskFlow workspace this report belongs to. */
+  taskflowOrganizationId?: mongoose.Types.ObjectId;
   project?: mongoose.Types.ObjectId;
   name: string;
   type: ReportType;
@@ -27,6 +29,7 @@ export interface IReport extends Document {
 const reportSchema = new Schema<IReport>(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    taskflowOrganizationId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true },
     project: { type: Schema.Types.ObjectId, ref: 'Project' },
     name: { type: String, required: true },
     type: {
@@ -52,5 +55,6 @@ const reportSchema = new Schema<IReport>(
 
 reportSchema.index({ user: 1 });
 reportSchema.index({ user: 1, project: 1 });
+reportSchema.index({ user: 1, taskflowOrganizationId: 1 });
 
 export const Report = mongoose.model<IReport>('Report', reportSchema);

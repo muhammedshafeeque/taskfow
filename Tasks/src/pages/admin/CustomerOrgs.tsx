@@ -18,7 +18,7 @@ function formatDate(iso: string): string {
 }
 
 export default function CustomerOrgs() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
   const [orgs, setOrgs] = useState<CustomerOrg[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +47,7 @@ export default function CustomerOrgs() {
     });
   }
 
-  useEffect(() => { loadOrgs(); }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadOrgs(); }, [token, user?.activeOrganizationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -83,8 +83,14 @@ export default function CustomerOrgs() {
       <div className="p-8 animate-fade-in">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
           <div>
-            <h1 className="text-xl font-semibold text-[color:var(--text-primary)]">Customer Organisations</h1>
-            <p className="text-sm text-[color:var(--text-muted)] mt-1">Manage customer organisations and their access</p>
+            <h1 className="text-xl font-semibold text-[color:var(--text-primary)]">Customer organisations</h1>
+            <p className="text-sm text-[color:var(--text-muted)] mt-1">
+              External client companies in your current TaskFlow workspace
+              {user?.organizations?.find((o) => o.id === user.activeOrganizationId)?.name
+                ? ` (${user.organizations.find((o) => o.id === user.activeOrganizationId)?.name})`
+                : ''}
+              . Switch workspace from the header to manage another workspace.
+            </p>
           </div>
           <button
             type="button"

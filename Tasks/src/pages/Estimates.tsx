@@ -14,7 +14,8 @@ import {
 import { getChartColor } from '../lib/chartTheme';
 
 export default function Estimates() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const workspaceKey = user?.activeOrganizationId ?? '';
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [totalMinutes, setTotalMinutes] = useState(0);
@@ -27,7 +28,7 @@ export default function Estimates() {
     projectsApi.list(1, 200, token).then((res) => {
       if (res.success && res.data) setProjects(res.data.data ?? []);
     });
-  }, [token]);
+  }, [token, workspaceKey]);
 
   useEffect(() => {
     if (!token) return;
@@ -44,7 +45,7 @@ export default function Estimates() {
         setByAssignee([]);
       }
     });
-  }, [token, selectedProjectId]);
+  }, [token, selectedProjectId, workspaceKey]);
 
   const projectChartData = byProject.map((p) => ({
     name: p.projectName,

@@ -97,23 +97,45 @@ async function sendViaGraph(to: string, subject: string, html: string): Promise<
   }
 }
 
+async function sendViaSendgrid(to: string, subject: string, html: string): Promise<void> {
+  const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.sendgridApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: { email: env.sendgridFromEmail || env.mailFrom },
+      personalizations: [{ to: [{ email: to }] }],
+      subject,
+      content: [{ type: 'text/html', value: html }],
+    }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`[email] SendGrid send failed [${response.status}]: ${errorText}`);
+  }
+}
+
 // ── Unified dispatcher ────────────────────────────────────────────────────────
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  console.log('sendEmail', to, subject, html);
-  const { isSmtpEnabled, isAzureGraphEnabled } = env;
+  const { isSmtpEnabled, isAzureGraphEnabled, isSendgridEnabled } = env;
 
-  if (isSmtpEnabled && isAzureGraphEnabled) {
-    console.warn('[email] Both IS_SMTP_ENABLED and IS_AZURE_GRAPH_ENABLED are true — SMTP takes precedence.');
+  if ((isSmtpEnabled ? 1 : 0) + (isAzureGraphEnabled ? 1 : 0) + (isSendgridEnabled ? 1 : 0) > 1) {
+    console.warn(
+      '[email] Multiple transports enabled (SMTP/AzureGraph/SendGrid) — priority: SMTP > Azure Graph > SendGrid.'
+    );
   }
 
-  if (!isSmtpEnabled && !isAzureGraphEnabled) {
-    console.warn('[email] No transport enabled (IS_SMTP_ENABLED, IS_AZURE_GRAPH_ENABLED). Email skipped.');
+  if (!isSmtpEnabled && !isAzureGraphEnabled && !isSendgridEnabled) {
+    console.warn('[email] No transport enabled (IS_SMTP_ENABLED, IS_AZURE_GRAPH_ENABLED, IS_SENDGRID_ENABLED). Email skipped.');
     return;
   }
 
   if (isSmtpEnabled) return sendViaSMTP(to, subject, html);
-  return sendViaGraph(to, subject, html);
+  if (isAzureGraphEnabled) return sendViaGraph(to, subject, html);
+  return sendViaSendgrid(to, subject, html);
 }
 
 export interface InviteEmailParams {
@@ -178,6 +200,42 @@ function escapeHtml(s: string): string {
 
 export async function sendInviteEmail(params: InviteEmailParams): Promise<void> {
   await sendEmail(params.email, 'Your TaskFlow account', renderInviteEmail(params));
+}
+
+export interface WorkspaceJoinInviteEmailParams {
+  inviteeName: string;
+  email: string;
+  workspaceName: string;
+  inviterName: string;
+  appUrl: string;
+}
+
+export function renderWorkspaceJoinInviteEmail(params: WorkspaceJoinInviteEmailParams): string {
+  const { inviteeName, workspaceName, inviterName, appUrl } = params;
+  const loginUrl = `${appUrl.replace(/\/$/, '')}/login`;
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Workspace invitation</title></head>
+<body style="font-family: system-ui, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2 style="color: #4f46e5;">You’ve been added to a workspace</h2>
+  <p>Hi ${escapeHtml(inviteeName)},</p>
+  <p>${escapeHtml(inviterName)} added you to the workspace <strong>${escapeHtml(workspaceName)}</strong> in TaskFlow.</p>
+  <p>Sign in with your existing account — no new password was created for you.</p>
+  <p><a href="${escapeHtml(loginUrl)}" style="color: #4f46e5;">Open TaskFlow</a></p>
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+  <p style="font-size: 12px; color: #64748b;">This is an automated message. Do not reply.</p>
+</body>
+</html>
+  `.trim();
+}
+
+export async function sendWorkspaceJoinInviteEmail(params: WorkspaceJoinInviteEmailParams): Promise<void> {
+  await sendEmail(
+    params.email,
+    `TaskFlow: Join workspace ${params.workspaceName}`,
+    renderWorkspaceJoinInviteEmail(params)
+  );
 }
 
 export async function sendForgotPasswordEmail(to: string, params: ForgotPasswordEmailParams): Promise<void> {

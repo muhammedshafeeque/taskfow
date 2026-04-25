@@ -10,6 +10,7 @@ import {
   updateProfileHandler,
   microsoftSsoHandler,
   microsoftSsoAuthorizeUrlHandler,
+  publicConfigHandler,
   debugPermissionsHandler,
   setPasswordHandler,
 } from './auth.controller';
@@ -20,6 +21,7 @@ const router = Router();
 router.use('/oauth', oauthRoutes);
 
 router.post('/register', registerHandler);
+router.get('/public-config', publicConfigHandler);
 router.post('/login', loginHandler);
 router.post('/refresh', refreshHandler);
 router.get('/me', meHandler);

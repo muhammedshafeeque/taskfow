@@ -2,11 +2,9 @@ import mongoose from 'mongoose';
 import { Watcher } from './watcher.model';
 import { Issue } from '../issues/issue.model';
 import { ProjectMember } from '../projects/projectMember.model';
-import { User } from '../auth/user.model';
 import { ApiError } from '../../utils/ApiError';
 import { env } from '../../config/env';
-import * as emailService from '../../services/email.service';
-import * as notificationsService from '../notifications/notifications.service';
+import { notifyUser } from '../notifications/notificationDispatch.service';
 
 async function ensureUserCanAccessIssue(userId: string, issueId: string): Promise<void> {
   const issue = await Issue.findById(issueId).select('project').lean();
@@ -100,30 +98,13 @@ export async function notifyWatchers(
         : params.type === 'status_changed'
           ? 'watch_status'
           : 'watch_field';
-    await notificationsService.createNotification({
+    await notifyUser({
       userId: toUser,
-      type: mappedType as any,
+      eventKey: mappedType,
       title: params.title,
       body: params.body ?? '',
       link: issueUrl,
       metadata: metaWithUrl,
     });
-  }
-
-  if (projectId && issueKey && toNotify.length > 0) {
-    const users = await User.find({ _id: { $in: toNotify } }).select('email').lean();
-    const emailParams: emailService.WatcherNotificationParams = {
-      type: params.type,
-      title: params.title,
-      body: params.body,
-      issueKey,
-      issueUrl,
-    };
-    for (const u of users) {
-      const email = (u as { email?: string }).email;
-      if (email) {
-        emailService.sendWatcherNotificationEmail(email, emailParams).catch(() => {});
-      }
-    }
   }
 }

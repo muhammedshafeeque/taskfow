@@ -2,11 +2,12 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { authApi } from '../../lib/api';
+import { resolvePostAuthRoute } from '../../lib/postAuthRedirect';
 
 export default function OAuthCallback() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { updateUser, setAccessToken } = useAuth();
+  const { updateUser, setAccessToken, switchWorkspace } = useAuth();
 
   useEffect(() => {
     const token = params.get('token');
@@ -15,13 +16,14 @@ export default function OAuthCallback() {
       return;
     }
     setAccessToken(token);
-    authApi.me(token).then((res) => {
+    authApi.me(token).then(async (res) => {
       if (!res.success || !res.data?.user) {
         navigate('/auth/error');
         return;
       }
       updateUser(res.data.user);
-      navigate(res.data.user.mustChangePassword ? '/inbox' : '/');
+      const next = await resolvePostAuthRoute(res.data.user, switchWorkspace);
+      navigate(next);
     });
   }, [params, navigate, updateUser]);
 

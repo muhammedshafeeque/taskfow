@@ -1,5 +1,7 @@
+import mongoose from 'mongoose';
 import { Report } from './report.model';
 import { Issue } from '../issues/issue.model';
+import { Project } from '../projects/project.model';
 import { ApiError } from '../../utils/ApiError';
 import * as dashboardService from '../dashboard/dashboard.service';
 import { buildIssueMatch, parseReportFilters, type ReportFilters } from './reportFilters';
@@ -20,13 +22,21 @@ export interface ReportConfig {
   chartType?: 'bar' | 'pie' | 'table';
 }
 
+function requireWorkspaceId(taskflowOrganizationId: string | null | undefined): string {
+  if (!taskflowOrganizationId || !mongoose.Types.ObjectId.isValid(taskflowOrganizationId)) {
+    throw new ApiError(400, 'Active workspace required');
+  }
+  return taskflowOrganizationId;
+}
+
 async function groupIssuesByField(
   userId: string,
   projectId: string | undefined,
   filters: ReportFilters,
-  field: 'status' | 'type' | 'priority'
+  field: 'status' | 'type' | 'priority',
+  taskflowOrganizationId: string
 ): Promise<Record<string, number>> {
-  const match = await buildIssueMatch(userId, projectId, filters);
+  const match = await buildIssueMatch(userId, projectId, filters, taskflowOrganizationId);
   if (!match) return {};
   const aggregationResult = await Issue.aggregate<{ _id: string | null; count: number }>([
     { $match: match },
@@ -40,8 +50,22 @@ async function groupIssuesByField(
   return out;
 }
 
-export async function listReports(userId: string): Promise<unknown[]> {
-  const list = await Report.find({ user: userId })
+async function assertProjectInWorkspace(projectId: string, workspaceId: string): Promise<void> {
+  const p = await Project.findById(projectId).select('taskflowOrganizationId').lean();
+  if (!p) throw new ApiError(400, 'Invalid project');
+  const pOrg = (p as { taskflowOrganizationId?: unknown }).taskflowOrganizationId;
+  if (!pOrg || String(pOrg) !== workspaceId) {
+    throw new ApiError(400, 'Project is not in the active workspace');
+  }
+}
+
+export async function listReports(
+  userId: string,
+  taskflowOrganizationId: string | null | undefined
+): Promise<unknown[]> {
+  const orgId = requireWorkspaceId(taskflowOrganizationId);
+  const orgOid = new mongoose.Types.ObjectId(orgId);
+  const list = await Report.find({ user: userId, taskflowOrganizationId: orgOid })
     .populate('project', 'name key')
     .sort({ createdAt: -1 })
     .lean();
@@ -50,10 +74,17 @@ export async function listReports(userId: string): Promise<unknown[]> {
 
 export async function createReport(
   userId: string,
-  input: { name: string; project?: string; type: ReportType; config?: ReportConfig }
+  input: { name: string; project?: string; type: ReportType; config?: ReportConfig },
+  taskflowOrganizationId: string | null | undefined
 ): Promise<unknown> {
+  const orgId = requireWorkspaceId(taskflowOrganizationId);
+  const orgOid = new mongoose.Types.ObjectId(orgId);
+  if (input.project) {
+    await assertProjectInWorkspace(input.project, orgId);
+  }
   const doc = await Report.create({
     user: userId,
+    taskflowOrganizationId: orgOid,
     project: input.project ?? undefined,
     name: input.name,
     type: input.type,
@@ -65,10 +96,16 @@ export async function createReport(
 export async function updateReport(
   reportId: string,
   userId: string,
-  input: Partial<{ name: string; project: string | null; type: ReportType; config: ReportConfig }>
+  input: Partial<{ name: string; project: string | null; type: ReportType; config: ReportConfig }>,
+  taskflowOrganizationId: string | null | undefined
 ): Promise<unknown | null> {
-  const report = await Report.findOne({ _id: reportId, user: userId });
+  const orgId = requireWorkspaceId(taskflowOrganizationId);
+  const orgOid = new mongoose.Types.ObjectId(orgId);
+  const report = await Report.findOne({ _id: reportId, user: userId, taskflowOrganizationId: orgOid });
   if (!report) return null;
+  if (input.project && input.project !== '') {
+    await assertProjectInWorkspace(input.project, orgId);
+  }
   const updateData: Record<string, unknown> = {};
   if (input.name !== undefined) updateData.name = input.name;
   if (input.project !== undefined) updateData.project = input.project || null;
@@ -78,15 +115,28 @@ export async function updateReport(
   return doc;
 }
 
-export async function deleteReport(reportId: string, userId: string): Promise<boolean> {
-  const result = await Report.deleteOne({ _id: reportId, user: userId });
+export async function deleteReport(
+  reportId: string,
+  userId: string,
+  taskflowOrganizationId: string | null | undefined
+): Promise<boolean> {
+  const orgOid = new mongoose.Types.ObjectId(requireWorkspaceId(taskflowOrganizationId));
+  const result = await Report.deleteOne({ _id: reportId, user: userId, taskflowOrganizationId: orgOid });
   return result.deletedCount > 0;
 }
 
-export async function executeReport(reportId: string, userId: string): Promise<unknown> {
-  const report = await Report.findById(reportId).lean();
+export async function executeReport(
+  reportId: string,
+  userId: string,
+  taskflowOrganizationId: string | null | undefined
+): Promise<unknown> {
+  const orgId = requireWorkspaceId(taskflowOrganizationId);
+  const report = await Report.findOne({
+    _id: reportId,
+    user: userId,
+    taskflowOrganizationId: new mongoose.Types.ObjectId(orgId),
+  }).lean();
   if (!report) throw new ApiError(404, 'Report not found');
-  if (String(report.user) !== userId) throw new ApiError(403, 'Access denied');
 
   const projectId = report.project ? String(report.project) : undefined;
   const config = (report.config ?? {}) as ReportConfig;
@@ -94,7 +144,7 @@ export async function executeReport(reportId: string, userId: string): Promise<u
 
   switch (report.type) {
     case 'issues_by_status': {
-      const issuesByStatus = await groupIssuesByField(userId, projectId, filters, 'status');
+      const issuesByStatus = await groupIssuesByField(userId, projectId, filters, 'status', orgId);
       return {
         type: 'issues_by_status',
         data: issuesByStatus,
@@ -103,7 +153,7 @@ export async function executeReport(reportId: string, userId: string): Promise<u
       };
     }
     case 'issues_by_type': {
-      const byType = await groupIssuesByField(userId, projectId, filters, 'type');
+      const byType = await groupIssuesByField(userId, projectId, filters, 'type', orgId);
       return {
         type: 'issues_by_type',
         data: byType,
@@ -112,7 +162,7 @@ export async function executeReport(reportId: string, userId: string): Promise<u
       };
     }
     case 'issues_by_priority': {
-      const byPriority = await groupIssuesByField(userId, projectId, filters, 'priority');
+      const byPriority = await groupIssuesByField(userId, projectId, filters, 'priority', orgId);
       return {
         type: 'issues_by_priority',
         data: byPriority,
@@ -121,7 +171,7 @@ export async function executeReport(reportId: string, userId: string): Promise<u
       };
     }
     case 'issues_by_assignee': {
-      const workload = await dashboardService.getWorkloadStats(userId, projectId, filters);
+      const workload = await dashboardService.getWorkloadStats(userId, projectId, filters, orgId);
       return {
         type: 'issues_by_assignee',
         data: workload.entries,
@@ -130,7 +180,7 @@ export async function executeReport(reportId: string, userId: string): Promise<u
       };
     }
     case 'workload': {
-      const workload = await dashboardService.getWorkloadStats(userId, projectId, filters);
+      const workload = await dashboardService.getWorkloadStats(userId, projectId, filters, orgId);
       return {
         type: 'workload',
         data: workload.entries,
@@ -139,7 +189,7 @@ export async function executeReport(reportId: string, userId: string): Promise<u
       };
     }
     case 'defects': {
-      const defects = await dashboardService.getDefectMetrics(userId, projectId, filters);
+      const defects = await dashboardService.getDefectMetrics(userId, projectId, filters, orgId);
       const byStatus = defects.byStatus;
       const byPriority = defects.byPriority;
       return {
